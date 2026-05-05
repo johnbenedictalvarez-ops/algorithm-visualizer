@@ -1,0 +1,1853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Algorithm Visualizer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0d0f17;color:#e2e8f0;font-family:'JetBrains Mono',monospace;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+  button{font-family:'JetBrains Mono',monospace;cursor:pointer}
+  input,select{font-family:'JetBrains Mono',monospace}
+  ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0a0c12}::-webkit-scrollbar-thumb{background:#1e2535;border-radius:2px}
+
+  #menu{position:fixed;inset:0;background:#0d0f17;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;z-index:100}
+  #menu-title{font-family:'Syne',sans-serif;font-size:28px;color:#f1f5f9;letter-spacing:1px;text-align:center}
+  #menu-title span{color:#3b82f6}
+  #menu-sub{font-size:11px;color:#475569;letter-spacing:2px;text-transform:uppercase;margin-top:-20px}
+  #menu-cards{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:1200px;padding:0 12px}
+  .menu-card{width:136px;padding:13px 10px;border:1px solid #1e2535;border-radius:12px;background:#111827;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s}
+  .menu-card:hover{border-color:#3b82f6;transform:translateY(-4px);box-shadow:0 8px 32px #3b82f622}
+  .menu-card .icon{font-size:22px}
+  .menu-card .name{font-family:'Syne',sans-serif;font-size:11px;color:#e2e8f0;text-align:center}
+  .menu-card .desc{font-size:9px;color:#475569;text-align:center;line-height:1.5}
+  .menu-card .chip{padding:2px 7px;font-size:9px;border-radius:20px;background:#1e3a5f;color:#60a5fa;border:1px solid #3b82f633}
+
+  #app{display:flex;height:100vh;overflow:hidden}
+  #app.hidden{display:none}
+  #back-btn{position:fixed;top:10px;left:12px;z-index:50;padding:4px 10px;font-size:11px;border:1px solid #1e2535;border-radius:6px;background:#111827;color:#64748b;display:none}
+  #back-btn:hover{color:#94a3b8;border-color:#334155}
+
+  #left{flex:1;display:flex;flex-direction:column;border-right:1px solid #1e2535;min-width:0}
+  #left-header{padding:9px 16px 9px 96px;background:#111827;border-bottom:1px solid #1e2535;display:flex;align-items:center;gap:10px;flex-shrink:0}
+  #left-header .tag{font-size:10px;color:#64748b;letter-spacing:2px;text-transform:uppercase}
+  #left-header .title{font-size:15px;font-weight:700;color:#f1f5f9;font-family:'Syne',sans-serif}
+  #speed-btns{margin-left:auto;display:flex;gap:5px;align-items:center}
+  #speed-btns span{font-size:10px;color:#475569}
+  #speed-select{padding:3px 6px;font-size:11px;border-radius:4px;border:1px solid #334155;background:#111827;color:#94a3b8;outline:none;cursor:pointer}
+
+  #viz-wrap{flex:1;overflow:hidden;position:relative}
+  svg#tree-svg,svg#bst-svg{width:100%;height:100%;display:block}
+  .sort-wrap{width:100%;height:100%;display:flex;align-items:flex-end;justify-content:center;gap:4px;padding:10px 12px 18px;position:absolute;bottom:0;left:0}
+  /* search wrap uses center-aligned bars */
+  #search-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:4px;padding:20px 12px;position:absolute;top:0;left:0}
+  .bar-col{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;max-width:52px}
+  .bar{width:100%;border-radius:5px 5px 0 0;transition:height .18s,background .18s,box-shadow .18s}
+  /* search bars are fixed height, highlight by color only */
+  .sbar{width:100%;height:52px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;transition:background .2s,box-shadow .2s,border-color .2s;border:1.5px solid #1e2535;background:#111827;color:#64748b}
+  .sbar.s-active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa;box-shadow:0 0 12px #3b82f688}
+  .sbar.s-found{background:#14291a;border-color:#22c55e;color:#4ade80;box-shadow:0 0 14px #22c55e88}
+  .sbar.s-elim{background:#111827;border-color:#1e2535;color:#334155}
+  .sbar.s-left{background:#0a1e2a;border-color:#06b6d4;color:#67e8f9;box-shadow:0 0 8px #06b6d444}
+  .sbar.s-right{background:#1e1208;border-color:#f97316;color:#fdba74;box-shadow:0 0 8px #f9731644}
+  .sbar.s-mid{background:#2a1040;border-color:#a78bfa;color:#c4b5fd;box-shadow:0 0 14px #a78bfa88}
+  .bar-val{font-size:10px;font-weight:700;color:#94a3b8;transition:color .18s}
+  .bar-idx{font-size:8px;color:#334155}
+  .bar.swap-bar{box-shadow:0 0 12px #f59e0b88}.bar.active-bar{box-shadow:0 0 12px #3b82f688}.bar.sorted-bar{box-shadow:0 0 8px #22c55e44}.bar.pivot-bar{box-shadow:0 0 14px #f43f5e99}.bar.key-bar{box-shadow:0 0 12px #a78bfa88}.bar.left-bar{box-shadow:0 0 12px #06b6d466}.bar.right-bar{box-shadow:0 0 12px #f97316aa}.bar.merge-bar{box-shadow:0 0 12px #8b5cf6aa}
+  #ll-wrap{width:100%;height:100%;position:absolute;top:0;left:0;overflow:hidden}
+  svg#ll-svg{width:100%;height:100%}
+  #dll-wrap{width:100%;height:100%;position:absolute;top:0;left:0;overflow:hidden}
+  svg#dll-svg{width:100%;height:100%}
+  #bst-wrap{width:100%;height:100%;position:absolute;top:0;left:0;overflow:hidden}
+
+  #array-bar{padding:3px 12px 5px;display:flex;gap:3px;flex-wrap:wrap;flex-shrink:0}
+  .arr-cell{min-width:27px;height:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#111827;border:1px solid #1e2535;border-radius:4px;font-size:10px;font-weight:700;color:#64748b;transition:all .2s}
+  .arr-cell.swap{background:#78350f;border-color:#f59e0b;color:#fbbf24}.arr-cell.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}.arr-cell.sorted{background:#14291a;border-color:#22c55e;color:#4ade80}.arr-cell.minc{background:#3b0a1a;border-color:#f43f5e;color:#fb7185}.arr-cell.keyc{background:#2a1040;border-color:#a78bfa;color:#c4b5fd}.arr-cell.shift{background:#1a1a0a;border-color:#ca8a04;color:#fde047}.arr-cell.pivot{background:#3b0a1a;border-color:#f43f5e;color:#fb7185}.arr-cell.rangec{background:#0a1e2a;border-color:#06b6d4;color:#67e8f9}.arr-cell.leftc{background:#0a1e2a;border-color:#06b6d4;color:#67e8f9}.arr-cell.rightc{background:#1e1208;border-color:#f97316;color:#fdba74}.arr-cell.mergec{background:#1a0d2e;border-color:#8b5cf6;color:#c4b5fd}
+  .arr-cell.s-active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
+  .arr-cell.s-found{background:#14291a;border-color:#22c55e;color:#4ade80}
+  .arr-cell.s-elim{background:#111827;border-color:#1e2535;color:#334155}
+  .arr-cell.s-mid{background:#2a1040;border-color:#a78bfa;color:#c4b5fd}
+  .arr-cell.s-left{background:#0a1e2a;border-color:#06b6d4;color:#67e8f9}
+  .arr-cell.s-right{background:#1e1208;border-color:#f97316;color:#fdba74}
+  .arr-cell .cidx{font-size:7px;color:#475569}
+
+  #msg-box{margin:0 12px 5px;min-height:32px;background:#111827;border:1px solid #1e2535;border-radius:6px;padding:6px 10px;font-size:11px;color:#94a3b8;flex-shrink:0}
+  #controls{padding:5px 12px 7px;display:flex;flex-direction:column;gap:5px;flex-shrink:0}
+  #op-row{display:flex;gap:5px}
+  #op-row input{flex:1;padding:5px 9px;background:#111827;border:1px solid #1e2535;border-radius:6px;color:#e2e8f0;font-size:12px;outline:none}
+  .op-btn{padding:5px 9px;font-size:11px;font-weight:700;border-radius:6px;letter-spacing:.3px;transition:background .15s}
+  .op-btn.green{border:1px solid #22c55e33;background:#22c55e18;color:#22c55e}
+  .op-btn.red{border:1px solid #ef444433;background:#ef444418;color:#ef4444}
+  .op-btn.purple{border:1px solid #a78bfa33;background:#a78bfa18;color:#a78bfa}
+  .op-btn.orange{border:1px solid #f97316aa;background:#f9731618;color:#fb923c}
+  .op-btn.cyan{border:1px solid #06b6d433;background:#06b6d418;color:#22d3ee}
+  .op-btn.rose{border:1px solid #f43f5eaa;background:#f43f5e18;color:#fb7185}
+  .op-btn.violet{border:1px solid #8b5cf6aa;background:#8b5cf618;color:#a78bfa}
+  .op-btn.teal{border:1px solid #14b8a6aa;background:#14b8a618;color:#2dd4bf}
+  .op-btn.indigo{border:1px solid #6366f1aa;background:#6366f118;color:#818cf8}
+  .op-btn.amber{border:1px solid #f59e0baa;background:#f59e0b18;color:#fbbf24}
+  .op-btn.sky{border:1px solid #0ea5e9aa;background:#0ea5e918;color:#38bdf8}
+  .op-btn.lime{border:1px solid #84cc16aa;background:#84cc1618;color:#a3e635}
+  #nav-row{display:flex;gap:5px;align-items:center}
+  .nav-btn{padding:3px 8px;font-size:11px;border:1px solid #1e2535;border-radius:6px;background:#111827;color:#64748b}
+  .nav-btn:disabled{color:#1e2535;cursor:default}
+  #step-counter{margin-left:auto;font-size:10px;color:#475569}
+  #log-row{padding:0 12px 6px;font-size:10px;color:#475569;flex-shrink:0;white-space:nowrap;overflow:hidden}
+
+  #right{width:430px;display:flex;flex-direction:column;background:#0a0c12;min-width:0}
+  #right-top{padding:7px 12px;background:#111827;border-bottom:1px solid #1e2535;display:flex;gap:6px;flex-direction:column;flex-shrink:0}
+  #lang-row{display:flex;gap:5px;align-items:center}
+  #lang-row span{font-size:10px;color:#475569;letter-spacing:1px}
+  .lang-btn{padding:3px 9px;font-size:11px;border-radius:4px;border:1px solid #1e2535;background:transparent;color:#475569;transition:all .15s}
+  .lang-btn.active{border-color:#f59e0b;background:#78350f44;color:#fbbf24}
+  #fn-row{display:flex;gap:5px;flex-wrap:wrap}
+  .fn-tab{padding:3px 8px;font-size:10px;border-radius:4px;border:1px solid #1e2535;background:transparent;color:#475569;transition:all .15s}
+  .fn-tab.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
+
+  #code-panel{flex:1;overflow-y:auto;overflow-x:auto;padding:8px 0}
+  .fn-label{padding:3px 14px;font-size:9px;color:#1e3a5f;letter-spacing:2px;text-transform:uppercase;border-top:1px solid #111827;margin-top:6px;margin-bottom:2px}
+  .fn-label:first-child{border-top:none;margin-top:0}
+  .code-line{display:flex;align-items:center;padding:1.5px 0;border-left:3px solid transparent;transition:background .2s,border-color .2s}
+  .code-line.hl{background:#1a2e4a;border-left-color:#3b82f6}
+  .ln{width:32px;text-align:right;padding-right:8px;font-size:11px;color:#1e2535;flex-shrink:0;font-family:'JetBrains Mono',monospace}
+  .code-line.hl .ln{color:#3b82f6}
+  .arrow{font-size:10px;color:#3b82f6;margin-right:3px;width:10px;flex-shrink:0}
+  .code-line:not(.hl) .arrow{visibility:hidden}
+  .code-text{font-size:12px;font-family:'JetBrains Mono',monospace;white-space:pre;color:#475569;line-height:1.6}
+  .code-line.hl .code-text{color:#f1f5f9;font-weight:600}
+  .kw{color:#818cf8}.str{color:#4ade80}.num{color:#fb923c}.cmt{color:#475569;font-style:italic}
+  .code-line.hl .kw{color:#a5b4fc}.code-line.hl .str{color:#86efac}.code-line.hl .num{color:#fdba74}
+
+  #legend{padding:7px 12px;border-top:1px solid #1e2535;display:flex;gap:7px;flex-wrap:wrap;flex-shrink:0}
+  .leg{display:flex;align-items:center;gap:4px;font-size:10px;color:#475569}
+  .leg-dot{width:8px;height:8px;border-radius:50%}
+</style>
+</head>
+<body>
+
+<div id="menu">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+    <div id="menu-title">Algorithm <span>Visualizer</span></div>
+    <div id="menu-sub">Select an algorithm</div>
+  </div>
+  <div id="menu-cards">
+    <div class="menu-card" onclick="launchHeap()"><div class="icon">🌲</div><div class="name">Max Heap</div><div class="desc">Insert, delete, heapify</div><div class="chip">Tree</div></div>
+    <div class="menu-card" onclick="launchBubble()"><div class="icon">🫧</div><div class="name">Bubble Sort</div><div class="desc">Adjacent swap sort</div><div class="chip">Sorting</div></div>
+    <div class="menu-card" onclick="launchSelection()"><div class="icon">🎯</div><div class="name">Selection Sort</div><div class="desc">Min swap sort</div><div class="chip">Sorting</div></div>
+    <div class="menu-card" onclick="launchInsertion()"><div class="icon">🃏</div><div class="name">Insertion Sort</div><div class="desc">Insert into sorted</div><div class="chip">Sorting</div></div>
+    <div class="menu-card" onclick="launchQuick()"><div class="icon">⚡</div><div class="name">Quick Sort</div><div class="desc">Pivot partition</div><div class="chip">Sorting</div></div>
+    <div class="menu-card" onclick="launchMerge()"><div class="icon">🔀</div><div class="name">Merge Sort</div><div class="desc">Divide and merge</div><div class="chip">Sorting</div></div>
+    <div class="menu-card" onclick="launchBST()"><div class="icon">🔍</div><div class="name">BST</div><div class="desc">Insert, search, delete, inorder</div><div class="chip">Tree</div></div>
+    <div class="menu-card" onclick="launchLinearSearch()"><div class="icon">🔎</div><div class="name">Linear Search</div><div class="desc">Scan each element one by one</div><div class="chip">Search</div></div>
+    <div class="menu-card" onclick="launchBinarySearch()"><div class="icon">⚖️</div><div class="name">Binary Search</div><div class="desc">Halve the range each step</div><div class="chip">Search</div></div>
+    <div class="menu-card" onclick="launchLL()"><div class="icon">🔗</div><div class="name">Linked List</div><div class="desc">Insert, delete, traverse</div><div class="chip">Linear</div></div>
+    <div class="menu-card" onclick="launchDLL()"><div class="icon">⛓️</div><div class="name">Doubly Linked List</div><div class="desc">Prev &amp; next pointers</div><div class="chip">Linear</div></div>
+  </div>
+</div>
+
+<button id="back-btn" onclick="goMenu()">← Menu</button>
+
+<div id="app" class="hidden">
+  <div id="left">
+    <div id="left-header">
+      <span class="tag" id="hdr-tag"></span>
+      <span class="title" id="hdr-title"></span>
+      <div id="speed-btns">
+        <span>speed</span>
+        <select id="speed-select">
+          <option value="5000">0.1×</option><option value="2500">0.2×</option>
+          <option value="1667">0.3×</option><option value="1250">0.4×</option>
+          <option value="1000">0.5×</option><option value="833">0.6×</option>
+          <option value="714">0.7×</option><option value="625">0.8×</option>
+          <option value="556">0.9×</option><option value="700" selected>1×</option>
+          <option value="350">2.0×</option>
+        </select>
+      </div>
+    </div>
+    <div id="viz-wrap">
+      <svg id="tree-svg" style="display:none"></svg>
+      <div id="bubble-wrap"  class="sort-wrap" style="display:none"></div>
+      <div id="sel-wrap"     class="sort-wrap" style="display:none"></div>
+      <div id="ins-wrap"     class="sort-wrap" style="display:none"></div>
+      <div id="quick-wrap"   class="sort-wrap" style="display:none"></div>
+      <div id="merge-wrap"   class="sort-wrap" style="display:none"></div>
+      <div id="bst-wrap"  style="display:none"><svg id="bst-svg"></svg></div>
+      <div id="lsearch-wrap" style="display:none"></div>
+      <div id="bsearch-wrap" style="display:none"></div>
+      <div id="ll-wrap"  style="display:none"><svg id="ll-svg"></svg></div>
+      <div id="dll-wrap" style="display:none"><svg id="dll-svg"></svg></div>
+    </div>
+    <div id="array-bar"></div>
+    <div id="msg-box">Choose an operation to animate</div>
+    <div id="controls">
+      <div id="op-row"></div>
+      <div id="nav-row">
+        <button class="nav-btn" id="btn-back">◀◀</button>
+        <button class="nav-btn" id="btn-play">▶ Play</button>
+        <button class="nav-btn" id="btn-fwd">▶▶</button>
+        <button class="nav-btn" id="btn-reset">↺ Reset</button>
+        <span id="step-counter">—</span>
+      </div>
+    </div>
+    <div id="log-row"></div>
+  </div>
+  <div id="right">
+    <div id="right-top">
+      <div id="lang-row">
+        <span>LANG</span>
+        <button class="lang-btn active" data-lang="cpp">C++</button>
+        <button class="lang-btn" data-lang="python">Python</button>
+        <button class="lang-btn" data-lang="java">Java</button>
+        <button class="lang-btn" data-lang="rust">Rust</button>
+      </div>
+      <div id="fn-row"></div>
+    </div>
+    <div id="code-panel"></div>
+    <div id="legend"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+const N=10;
+let steps=[],stepIdx=-1,isPlaying=false,playTimer=null,speed=700,_onComplete=null;
+let currentMode='',currentLang='cpp',opLog=[];
+let heap=[50,30,40,10,20,35,25,15,45,5];
+const BUBBLE_INIT=[12,3,29,1,23,2,10,17,8,33];
+const SEL_INIT   =[12,5,14,8,3,4,90,16,24,7];
+const INS_INIT   =[5,5,2,6,8,2,9,4,7,1];
+const QS_INIT    =[8,3,7,1,5,9,2,6,4,10];
+const MS_INIT    =[6,2,8,4,10,1,7,3,9,5];
+const LS_INIT    =[14,7,23,3,18,9,31,5,11,27];
+const BS_INIT    =[2,5,8,12,16,23,38,45,56,72]; // must be sorted
+let bubbleArr=[...BUBBLE_INIT],selArr=[...SEL_INIT],insArr=[...INS_INIT];
+let qsArr=[...QS_INIT],msArr=[...MS_INIT];
+let lsArr=[...LS_INIT],bsArr=[...BS_INIT];
+let llList=[],dllList=[],bstRoot=null;
+
+// ═══════════════════════════════════════════
+// CODE DEFINITIONS
+// ═══════════════════════════════════════════
+const CODE = {
+
+// ── MAX HEAP ─────────────────────────────────────────────
+heap:{
+  cpp:{
+    insert:{label:"void insert(int value)",lines:[
+      {id:"i0",t:"void insert(int value) {"},{id:"i1",t:"    if (size == MAX) {"},
+      {id:"i2",t:'        cout << "Heap is full!" << endl;'},{id:"i3",t:"        return;"},{id:"i4",t:"    }"},
+      {id:"i5",t:"    arr[size] = value;"},{id:"i6",t:"    int i = size;"},{id:"i7",t:"    size++;"},
+      {id:"i8",t:"    while (i != 0 && arr[(i-1)/2] < arr[i]) {"},
+      {id:"i9",t:"        swap(arr[i], arr[(i-1)/2]);"},{id:"i10",t:"        i = (i-1)/2;"},{id:"i11",t:"    }"},{id:"i12",t:"}"},
+    ]},
+    deleteRoot:{label:"void deleteRoot()",lines:[
+      {id:"d0",t:"void deleteRoot() {"},{id:"d1",t:"    if (size <= 0) {"},
+      {id:"d2",t:'        cout << "Heap is empty!" << endl;'},{id:"d3",t:"        return;"},{id:"d4",t:"    }"},
+      {id:"d5",t:"    arr[0] = arr[size - 1];"},{id:"d6",t:"    size--;"},{id:"d7",t:"    heapify(0);"},{id:"d8",t:"}"},
+    ]},
+    heapify:{label:"void heapify(int i)",lines:[
+      {id:"h0",t:"void heapify(int i) {"},{id:"h1",t:"    int largest = i;"},
+      {id:"h2",t:"    int left    = 2*i + 1;"},{id:"h3",t:"    int right   = 2*i + 2;"},
+      {id:"h4",t:"    if (left < size && arr[left] > arr[largest])"},{id:"h5",t:"        largest = left;"},
+      {id:"h6",t:"    if (right < size && arr[right] > arr[largest])"},{id:"h7",t:"        largest = right;"},
+      {id:"h8",t:"    if (largest != i) {"},{id:"h9",t:"        swap(arr[i], arr[largest]);"},
+      {id:"h10",t:"        heapify(largest);"},{id:"h11",t:"    }"},{id:"h12",t:"}"},
+    ]}
+  },
+  python:{
+    insert:{label:"def insert(self, value)",lines:[
+      {id:"i0",t:"def insert(self, value):"},{id:"i1",t:"    if self.size == self.MAX:"},
+      {id:"i2",t:'        print("Heap is full!")'},{id:"i3",t:"        return"},
+      {id:"i5",t:"    self.arr[self.size] = value"},{id:"i6",t:"    i = self.size"},{id:"i7",t:"    self.size += 1"},
+      {id:"i8",t:"    while i != 0 and self.arr[(i-1)//2] < self.arr[i]:"},
+      {id:"i9",t:"        self.arr[i], self.arr[(i-1)//2] = self.arr[(i-1)//2], self.arr[i]"},
+      {id:"i10",t:"        i = (i-1)//2"},
+    ]},
+    deleteRoot:{label:"def delete_root(self)",lines:[
+      {id:"d0",t:"def delete_root(self):"},{id:"d1",t:"    if self.size <= 0:"},
+      {id:"d2",t:'        print("Heap is empty!")'},{id:"d3",t:"        return"},
+      {id:"d5",t:"    self.arr[0] = self.arr[self.size - 1]"},{id:"d6",t:"    self.size -= 1"},{id:"d7",t:"    self.heapify(0)"},
+    ]},
+    heapify:{label:"def heapify(self, i)",lines:[
+      {id:"h0",t:"def heapify(self, i):"},{id:"h1",t:"    largest = i"},
+      {id:"h2",t:"    left    = 2*i + 1"},{id:"h3",t:"    right   = 2*i + 2"},
+      {id:"h4",t:"    if left < self.size and self.arr[left] > self.arr[largest]:"},{id:"h5",t:"        largest = left"},
+      {id:"h6",t:"    if right < self.size and self.arr[right] > self.arr[largest]:"},{id:"h7",t:"        largest = right"},
+      {id:"h8",t:"    if largest != i:"},{id:"h9",t:"        self.arr[i], self.arr[largest] = self.arr[largest], self.arr[i]"},
+      {id:"h10",t:"        self.heapify(largest)"},
+    ]}
+  },
+  java:{
+    insert:{label:"void insert(int value)",lines:[
+      {id:"i0",t:"void insert(int value) {"},{id:"i1",t:"    if (size == MAX) {"},
+      {id:"i2",t:'        System.out.println("Heap is full!");'},{id:"i3",t:"        return;"},{id:"i4",t:"    }"},
+      {id:"i5",t:"    arr[size] = value;"},{id:"i6",t:"    int i = size;"},{id:"i7",t:"    size++;"},
+      {id:"i8",t:"    while (i != 0 && arr[(i-1)/2] < arr[i]) {"},
+      {id:"i9",t:"        int tmp = arr[i]; arr[i] = arr[(i-1)/2]; arr[(i-1)/2] = tmp;"},
+      {id:"i10",t:"        i = (i-1)/2;"},{id:"i11",t:"    }"},{id:"i12",t:"}"},
+    ]},
+    deleteRoot:{label:"void deleteRoot()",lines:[
+      {id:"d0",t:"void deleteRoot() {"},{id:"d1",t:"    if (size <= 0) {"},
+      {id:"d2",t:'        System.out.println("Heap is empty!");'},{id:"d3",t:"        return;"},{id:"d4",t:"    }"},
+      {id:"d5",t:"    arr[0] = arr[size - 1];"},{id:"d6",t:"    size--;"},{id:"d7",t:"    heapify(0);"},{id:"d8",t:"}"},
+    ]},
+    heapify:{label:"void heapify(int i)",lines:[
+      {id:"h0",t:"void heapify(int i) {"},{id:"h1",t:"    int largest = i;"},
+      {id:"h2",t:"    int left    = 2*i + 1;"},{id:"h3",t:"    int right   = 2*i + 2;"},
+      {id:"h4",t:"    if (left < size && arr[left] > arr[largest])"},{id:"h5",t:"        largest = left;"},
+      {id:"h6",t:"    if (right < size && arr[right] > arr[largest])"},{id:"h7",t:"        largest = right;"},
+      {id:"h8",t:"    if (largest != i) {"},{id:"h9",t:"        int tmp = arr[i]; arr[i] = arr[largest]; arr[largest] = tmp;"},
+      {id:"h10",t:"        heapify(largest);"},{id:"h11",t:"    }"},{id:"h12",t:"}"},
+    ]}
+  },
+  rust:{
+    insert:{label:"fn insert(&mut self, value: i32)",lines:[
+      {id:"i0",t:"fn insert(&mut self, value: i32) {"},{id:"i1",t:"    if self.size == self.arr.len() {"},
+      {id:"i2",t:'        println!("Heap is full!");'},{id:"i3",t:"        return;"},{id:"i4",t:"    }"},
+      {id:"i5",t:"    self.arr[self.size] = value;"},{id:"i6",t:"    let mut i = self.size;"},{id:"i7",t:"    self.size += 1;"},
+      {id:"i8",t:"    while i != 0 && self.arr[(i-1)/2] < self.arr[i] {"},
+      {id:"i9",t:"        self.arr.swap(i, (i-1)/2);"},{id:"i10",t:"        i = (i-1)/2;"},{id:"i11",t:"    }"},{id:"i12",t:"}"},
+    ]},
+    deleteRoot:{label:"fn delete_root(&mut self)",lines:[
+      {id:"d0",t:"fn delete_root(&mut self) {"},{id:"d1",t:"    if self.size == 0 {"},
+      {id:"d2",t:'        println!("Heap is empty!");'},{id:"d3",t:"        return;"},{id:"d4",t:"    }"},
+      {id:"d5",t:"    self.arr[0] = self.arr[self.size - 1];"},{id:"d6",t:"    self.size -= 1;"},{id:"d7",t:"    self.heapify(0);"},{id:"d8",t:"}"},
+    ]},
+    heapify:{label:"fn heapify(&mut self, i: usize)",lines:[
+      {id:"h0",t:"fn heapify(&mut self, i: usize) {"},{id:"h1",t:"    let mut largest = i;"},
+      {id:"h2",t:"    let left  = 2*i + 1;"},{id:"h3",t:"    let right = 2*i + 2;"},
+      {id:"h4",t:"    if left < self.size && self.arr[left] > self.arr[largest]"},{id:"h4b",t:"        { largest = left; }"},
+      {id:"h6",t:"    if right < self.size && self.arr[right] > self.arr[largest]"},{id:"h6b",t:"        { largest = right; }"},
+      {id:"h8",t:"    if largest != i {"},{id:"h9",t:"        self.arr.swap(i, largest);"},
+      {id:"h10",t:"        self.heapify(largest);"},{id:"h11",t:"    }"},{id:"h12",t:"}"},
+    ]}
+  }
+},
+
+// ── BUBBLE SORT ──────────────────────────────────────────
+bubble:{
+  cpp:{
+    bubblesort:{label:"void bubblesort(int arr[])",lines:[
+      {id:"b0",t:"void bubblesort(int arr[]) {"},
+      {id:"b1",t:"    for (int i = 0; i < 10; i++) {"},
+      {id:"b2",t:"        for (int e = 1; e < 10 - i; e++) {"},
+      {id:"b3",t:"            if (arr[e] < arr[e-1]) {"},
+      {id:"b4",t:"                swap(arr[e], arr[e-1]);"},
+      {id:"b5",t:"            }"},{id:"b6",t:"        }"},{id:"b7",t:"    }"},{id:"b8",t:"}"},
+    ]},
+    main:{label:"int main()",lines:[
+      {id:"m0",t:"int main() {"},
+      {id:"m1",t:"    int arr[] = {12,3,29,1,23,2,10,17,8,33};"},
+      {id:"m2",t:"    bubblesort(arr);"},
+      {id:"m3",t:"    for (int i = 0; i < 10; i++)"},
+      {id:"m4",t:'        cout << arr[i] << " ";'},
+      {id:"m5",t:"    return 0;"},{id:"m6",t:"}"},
+    ]}
+  },
+  python:{
+    bubblesort:{label:"def bubble_sort(arr)",lines:[
+      {id:"b0",t:"def bubble_sort(arr):"},
+      {id:"b1",t:"    for i in range(len(arr)):"},
+      {id:"b2",t:"        for e in range(1, len(arr) - i):"},
+      {id:"b3",t:"            if arr[e] < arr[e-1]:"},
+      {id:"b4",t:"                arr[e], arr[e-1] = arr[e-1], arr[e]"},
+    ]},
+    main:{label:"main block",lines:[
+      {id:"m0",t:'if __name__ == "__main__":'},
+      {id:"m1",t:"    arr = [12,3,29,1,23,2,10,17,8,33]"},
+      {id:"m2",t:"    bubble_sort(arr)"},{id:"m3",t:"    print(*arr)"},
+    ]}
+  },
+  java:{
+    bubblesort:{label:"void bubbleSort(int[] arr)",lines:[
+      {id:"b0",t:"static void bubbleSort(int[] arr) {"},
+      {id:"b1",t:"    for (int i = 0; i < arr.length; i++) {"},
+      {id:"b2",t:"        for (int e = 1; e < arr.length - i; e++) {"},
+      {id:"b3",t:"            if (arr[e] < arr[e-1]) {"},
+      {id:"b4",t:"                int tmp = arr[e]; arr[e] = arr[e-1]; arr[e-1] = tmp;"},
+      {id:"b5",t:"            }"},{id:"b6",t:"        }"},{id:"b7",t:"    }"},{id:"b8",t:"}"},
+    ]},
+    main:{label:"main()",lines:[
+      {id:"m0",t:"public static void main(String[] args) {"},
+      {id:"m1",t:"    int[] arr = {12,3,29,1,23,2,10,17,8,33};"},
+      {id:"m2",t:"    bubbleSort(arr);"},
+      {id:"m3",t:"    for (int x : arr)"},{id:"m4",t:'        System.out.print(x + " ");'},{id:"m5",t:"}"},
+    ]}
+  },
+  rust:{
+    bubblesort:{label:"fn bubble_sort(arr: &mut [i32])",lines:[
+      {id:"b0",t:"fn bubble_sort(arr: &mut [i32]) {"},
+      {id:"b1",t:"    let n = arr.len();"},
+      {id:"b2",t:"    for i in 0..n {"},
+      {id:"b3",t:"        for e in 1..(n - i) {"},
+      {id:"b4",t:"            if arr[e] < arr[e-1] { arr.swap(e, e-1); }"},
+      {id:"b6",t:"        }"},{id:"b7",t:"    }"},{id:"b8",t:"}"},
+    ]},
+    main:{label:"fn main()",lines:[
+      {id:"m0",t:"fn main() {"},
+      {id:"m1",t:"    let mut arr = [12,3,29,1,23,2,10,17,8,33];"},
+      {id:"m2",t:"    bubble_sort(&mut arr);"},
+      {id:"m3",t:"    for x in &arr { print!(\"{} \", x); }"},{id:"m4",t:"}"},
+    ]}
+  }
+},
+
+// ── SELECTION SORT ───────────────────────────────────────
+selection:{
+  cpp:{
+    selection:{label:"void selection(int arr[])",lines:[
+      {id:"se0",t:"void selection(int arr[]) {"},
+      {id:"se1",t:"    for (int i = 0; i < 10; i++) {"},
+      {id:"se2",t:"        int smallest = i;"},
+      {id:"se3",t:"        for (int e = i+1; e < 10; e++) {"},
+      {id:"se4",t:"            if (arr[e] < arr[smallest]) {"},
+      {id:"se5",t:"                smallest = e;"},{id:"se6",t:"            }"},{id:"se7",t:"        }"},
+      {id:"se8",t:"        swap(arr[smallest], arr[i]);"},{id:"se9",t:"    }"},{id:"se10",t:"}"},
+    ]},
+    main:{label:"int main()",lines:[
+      {id:"sm0",t:"int main() {"},
+      {id:"sm1",t:"    int arr[] = {12,5,14,8,3,4,90,16,24,7};"},
+      {id:"sm2",t:"    selection(arr);"},
+      {id:"sm3",t:"    for (int i = 0; i < 10; i++)"},
+      {id:"sm4",t:'        cout << arr[i] << " -> ";'},{id:"sm5",t:"    return 0;"},{id:"sm6",t:"}"},
+    ]}
+  },
+  python:{
+    selection:{label:"def selection_sort(arr)",lines:[
+      {id:"se0",t:"def selection_sort(arr):"},
+      {id:"se1",t:"    n = len(arr)"},
+      {id:"se2",t:"    for i in range(n):"},
+      {id:"se3",t:"        smallest = i"},
+      {id:"se4",t:"        for e in range(i+1, n):"},
+      {id:"se5",t:"            if arr[e] < arr[smallest]:"},
+      {id:"se6",t:"                smallest = e"},
+      {id:"se8",t:"        arr[i], arr[smallest] = arr[smallest], arr[i]"},
+    ]},
+    main:{label:"main block",lines:[
+      {id:"sm0",t:'if __name__ == "__main__":'},
+      {id:"sm1",t:"    arr = [12,5,14,8,3,4,90,16,24,7]"},
+      {id:"sm2",t:"    selection_sort(arr)"},
+      {id:"sm3",t:"    for x in arr: print(x, end=' -> ')"},
+    ]}
+  },
+  java:{
+    selection:{label:"void selection(int[] arr)",lines:[
+      {id:"se0",t:"static void selection(int[] arr) {"},
+      {id:"se1",t:"    for (int i = 0; i < arr.length; i++) {"},
+      {id:"se2",t:"        int smallest = i;"},
+      {id:"se3",t:"        for (int e = i+1; e < arr.length; e++) {"},
+      {id:"se4",t:"            if (arr[e] < arr[smallest]) {"},
+      {id:"se5",t:"                smallest = e;"},{id:"se6",t:"            }"},{id:"se7",t:"        }"},
+      {id:"se8",t:"        int tmp = arr[smallest]; arr[smallest] = arr[i]; arr[i] = tmp;"},
+      {id:"se9",t:"    }"},{id:"se10",t:"}"},
+    ]},
+    main:{label:"main()",lines:[
+      {id:"sm0",t:"public static void main(String[] args) {"},
+      {id:"sm1",t:"    int[] arr = {12,5,14,8,3,4,90,16,24,7};"},
+      {id:"sm2",t:"    selection(arr);"},
+      {id:"sm3",t:"    for (int x : arr)"},
+      {id:"sm4",t:'        System.out.print(x + " -> ");'},{id:"sm5",t:"}"},
+    ]}
+  },
+  rust:{
+    selection:{label:"fn selection(arr: &mut [i32])",lines:[
+      {id:"se0",t:"fn selection(arr: &mut [i32]) {"},
+      {id:"se1",t:"    let n = arr.len();"},
+      {id:"se2",t:"    for i in 0..n {"},
+      {id:"se3",t:"        let mut smallest = i;"},
+      {id:"se4",t:"        for e in (i+1)..n {"},
+      {id:"se5",t:"            if arr[e] < arr[smallest] { smallest = e; }"},
+      {id:"se7",t:"        }"},
+      {id:"se8",t:"        arr.swap(i, smallest);"},{id:"se9",t:"    }"},{id:"se10",t:"}"},
+    ]},
+    main:{label:"fn main()",lines:[
+      {id:"sm0",t:"fn main() {"},
+      {id:"sm1",t:"    let mut arr = [12,5,14,8,3,4,90,16,24,7];"},
+      {id:"sm2",t:"    selection(&mut arr);"},
+      {id:"sm3",t:"    for x in &arr { print!(\"{} -> \", x); }"},{id:"sm4",t:"}"},
+    ]}
+  }
+},
+
+// ── INSERTION SORT ───────────────────────────────────────
+insertion:{
+  cpp:{
+    insertion:{label:"void insertion(int arr[])",lines:[
+      {id:"is0",t:"void insertion(int arr[]) {"},
+      {id:"is1",t:"    for (int i = 1; i < 10; i++) {"},
+      {id:"is2",t:"        int key = arr[i];"},
+      {id:"is3",t:"        int j   = i - 1;"},
+      {id:"is4",t:"        while (j >= 0 && arr[j] > key) {"},
+      {id:"is5",t:"            arr[j+1] = arr[j];"},{id:"is6",t:"            j--;"},{id:"is7",t:"        }"},
+      {id:"is8",t:"        arr[j+1] = key;"},{id:"is9",t:"    }"},{id:"is10",t:"}"},
+    ]},
+    main:{label:"int main()",lines:[
+      {id:"im0",t:"int main() {"},
+      {id:"im1",t:"    int arr[] = {5,5,2,6,8,2,9,4,7,1};"},
+      {id:"im2",t:"    insertion(arr);"},
+      {id:"im3",t:"    for (int i = 0; i < 10; i++)"},
+      {id:"im4",t:'        cout << arr[i] << " -> ";'},{id:"im5",t:"    return 0;"},{id:"im6",t:"}"},
+    ]}
+  },
+  python:{
+    insertion:{label:"def insertion_sort(arr)",lines:[
+      {id:"is0",t:"def insertion_sort(arr):"},
+      {id:"is1",t:"    for i in range(1, len(arr)):"},
+      {id:"is2",t:"        key = arr[i]"},{id:"is3",t:"        j   = i - 1"},
+      {id:"is4",t:"        while j >= 0 and arr[j] > key:"},
+      {id:"is5",t:"            arr[j+1] = arr[j]"},{id:"is6",t:"            j -= 1"},
+      {id:"is8",t:"        arr[j+1] = key"},
+    ]},
+    main:{label:"main block",lines:[
+      {id:"im0",t:'if __name__ == "__main__":'},
+      {id:"im1",t:"    arr = [5,5,2,6,8,2,9,4,7,1]"},
+      {id:"im2",t:"    insertion_sort(arr)"},
+      {id:"im3",t:"    for x in arr: print(x, end=' -> ')"},
+    ]}
+  },
+  java:{
+    insertion:{label:"void insertion(int[] arr)",lines:[
+      {id:"is0",t:"static void insertion(int[] arr) {"},
+      {id:"is1",t:"    for (int i = 1; i < arr.length; i++) {"},
+      {id:"is2",t:"        int key = arr[i];"},{id:"is3",t:"        int j   = i - 1;"},
+      {id:"is4",t:"        while (j >= 0 && arr[j] > key) {"},
+      {id:"is5",t:"            arr[j+1] = arr[j];"},{id:"is6",t:"            j--;"},{id:"is7",t:"        }"},
+      {id:"is8",t:"        arr[j+1] = key;"},{id:"is9",t:"    }"},{id:"is10",t:"}"},
+    ]},
+    main:{label:"main()",lines:[
+      {id:"im0",t:"public static void main(String[] args) {"},
+      {id:"im1",t:"    int[] arr = {5,5,2,6,8,2,9,4,7,1};"},
+      {id:"im2",t:"    insertion(arr);"},
+      {id:"im3",t:"    for (int x : arr)"},
+      {id:"im4",t:'        System.out.print(x + " -> ");'},{id:"im5",t:"}"},
+    ]}
+  },
+  rust:{
+    insertion:{label:"fn insertion(arr: &mut [i32])",lines:[
+      {id:"is0",t:"fn insertion(arr: &mut [i32]) {"},
+      {id:"is1",t:"    for i in 1..arr.len() {"},
+      {id:"is2",t:"        let key = arr[i];"},{id:"is3",t:"        let mut j = i;"},
+      {id:"is4",t:"        while j > 0 && arr[j-1] > key {"},
+      {id:"is5",t:"            arr[j] = arr[j-1];"},{id:"is6",t:"            j -= 1;"},{id:"is7",t:"        }"},
+      {id:"is8",t:"        arr[j] = key;"},{id:"is9",t:"    }"},{id:"is10",t:"}"},
+    ]},
+    main:{label:"fn main()",lines:[
+      {id:"im0",t:"fn main() {"},
+      {id:"im1",t:"    let mut arr = [5,5,2,6,8,2,9,4,7,1];"},
+      {id:"im2",t:"    insertion(&mut arr);"},
+      {id:"im3",t:"    for x in &arr { print!(\"{} -> \", x); }"},{id:"im4",t:"}"},
+    ]}
+  }
+},
+
+// ── QUICK SORT ───────────────────────────────────────────
+quicksort:{
+  cpp:{
+    partition:{label:"int partition(arr, low, high)",lines:[
+      {id:"qp0",t:"int partition(int arr[], int low, int high) {"},
+      {id:"qp1",t:"    int pivot = arr[high];"},{id:"qp2",t:"    int i = low - 1;"},
+      {id:"qp3",t:"    for (int j = low; j < high; j++) {"},
+      {id:"qp4",t:"        if (arr[j] < pivot) {"},
+      {id:"qp5",t:"            i++;"},{id:"qp6",t:"            swap(arr[i], arr[j]);"},{id:"qp7",t:"        }"},{id:"qp8",t:"    }"},
+      {id:"qp9",t:"    swap(arr[i+1], arr[high]);"},{id:"qp10",t:"    return i + 1;"},{id:"qp11",t:"}"},
+    ]},
+    quickSort:{label:"void quickSort(arr, low, high)",lines:[
+      {id:"qq0",t:"void quickSort(int arr[], int low, int high) {"},
+      {id:"qq1",t:"    if (low < high) {"},
+      {id:"qq2",t:"        int pi = partition(arr, low, high);"},
+      {id:"qq3",t:"        quickSort(arr, low, pi - 1);"},
+      {id:"qq4",t:"        quickSort(arr, pi + 1, high);"},{id:"qq5",t:"    }"},{id:"qq6",t:"}"},
+    ]},
+    main:{label:"int main()",lines:[
+      {id:"qm0",t:"int main() {"},{id:"qm1",t:"    int arr[] = {8,3,7,1,5,9,2,6,4,10};"},
+      {id:"qm2",t:"    quickSort(arr, 0, 9);"},
+      {id:"qm3",t:"    for (int i = 0; i < 10; i++)"},
+      {id:"qm4",t:'        cout << arr[i] << " ";'},{id:"qm5",t:"    return 0;"},{id:"qm6",t:"}"},
+    ]}
+  },
+  python:{
+    partition:{label:"def partition(arr, low, high)",lines:[
+      {id:"qp0",t:"def partition(arr, low, high):"},
+      {id:"qp1",t:"    pivot = arr[high]"},{id:"qp2",t:"    i = low - 1"},
+      {id:"qp3",t:"    for j in range(low, high):"},
+      {id:"qp4",t:"        if arr[j] < pivot:"},
+      {id:"qp5",t:"            i += 1"},{id:"qp6",t:"            arr[i], arr[j] = arr[j], arr[i]"},
+      {id:"qp9",t:"    arr[i+1], arr[high] = arr[high], arr[i+1]"},
+      {id:"qp10",t:"    return i + 1"},
+    ]},
+    quickSort:{label:"def quick_sort(arr, low, high)",lines:[
+      {id:"qq0",t:"def quick_sort(arr, low, high):"},
+      {id:"qq1",t:"    if low < high:"},
+      {id:"qq2",t:"        pi = partition(arr, low, high)"},
+      {id:"qq3",t:"        quick_sort(arr, low, pi - 1)"},
+      {id:"qq4",t:"        quick_sort(arr, pi + 1, high)"},
+    ]},
+    main:{label:"main block",lines:[
+      {id:"qm0",t:'if __name__ == "__main__":'},
+      {id:"qm1",t:"    arr = [8,3,7,1,5,9,2,6,4,10]"},
+      {id:"qm2",t:"    quick_sort(arr, 0, len(arr)-1)"},{id:"qm3",t:"    print(*arr)"},
+    ]}
+  },
+  java:{
+    partition:{label:"int partition(arr, low, high)",lines:[
+      {id:"qp0",t:"static int partition(int[] arr, int low, int high) {"},
+      {id:"qp1",t:"    int pivot = arr[high];"},{id:"qp2",t:"    int i = low - 1;"},
+      {id:"qp3",t:"    for (int j = low; j < high; j++) {"},
+      {id:"qp4",t:"        if (arr[j] < pivot) {"},
+      {id:"qp5",t:"            i++;"},{id:"qp6",t:"            int tmp=arr[i]; arr[i]=arr[j]; arr[j]=tmp;"},{id:"qp7",t:"        }"},{id:"qp8",t:"    }"},
+      {id:"qp9",t:"    int tmp=arr[i+1]; arr[i+1]=arr[high]; arr[high]=tmp;"},
+      {id:"qp10",t:"    return i + 1;"},{id:"qp11",t:"}"},
+    ]},
+    quickSort:{label:"void quickSort(arr, low, high)",lines:[
+      {id:"qq0",t:"static void quickSort(int[] arr, int low, int high) {"},
+      {id:"qq1",t:"    if (low < high) {"},
+      {id:"qq2",t:"        int pi = partition(arr, low, high);"},
+      {id:"qq3",t:"        quickSort(arr, low, pi - 1);"},
+      {id:"qq4",t:"        quickSort(arr, pi + 1, high);"},{id:"qq5",t:"    }"},{id:"qq6",t:"}"},
+    ]},
+    main:{label:"main()",lines:[
+      {id:"qm0",t:"public static void main(String[] args) {"},{id:"qm1",t:"    int[] arr = {8,3,7,1,5,9,2,6,4,10};"},
+      {id:"qm2",t:"    quickSort(arr, 0, arr.length-1);"},
+      {id:"qm3",t:"    for (int x : arr)"},{id:"qm4",t:'        System.out.print(x + " ");'},{id:"qm5",t:"}"},
+    ]}
+  },
+  rust:{
+    partition:{label:"fn partition(arr, lo, hi) -> usize",lines:[
+      {id:"qp0",t:"fn partition(arr: &mut [i32], lo: usize, hi: usize) -> usize {"},
+      {id:"qp1",t:"    let pivot = arr[hi];"},{id:"qp2",t:"    let mut i = lo;"},
+      {id:"qp3",t:"    for j in lo..hi {"},
+      {id:"qp4",t:"        if arr[j] < pivot {"},
+      {id:"qp6",t:"            arr.swap(i, j); i += 1;"},{id:"qp7",t:"        }"},{id:"qp8",t:"    }"},
+      {id:"qp9",t:"    arr.swap(i, hi); i"},{id:"qp11",t:"}"},
+    ]},
+    quickSort:{label:"fn quick_sort(arr, lo, hi)",lines:[
+      {id:"qq0",t:"fn quick_sort(arr: &mut [i32], lo: usize, hi: usize) {"},
+      {id:"qq1",t:"    if lo < hi {"},
+      {id:"qq2",t:"        let pi = partition(arr, lo, hi);"},
+      {id:"qq3",t:"        if pi > 0 { quick_sort(arr, lo, pi-1); }"},
+      {id:"qq4",t:"        quick_sort(arr, pi+1, hi);"},{id:"qq5",t:"    }"},{id:"qq6",t:"}"},
+    ]},
+    main:{label:"fn main()",lines:[
+      {id:"qm0",t:"fn main() {"},{id:"qm1",t:"    let mut arr = [8,3,7,1,5,9,2,6,4,10];"},
+      {id:"qm2",t:"    let n = arr.len()-1; quick_sort(&mut arr, 0, n);"},
+      {id:"qm3",t:"    for x in &arr { print!(\"{} \", x); }"},{id:"qm4",t:"}"},
+    ]}
+  }
+},
+
+// ── MERGE SORT ───────────────────────────────────────────
+mergesort:{
+  cpp:{
+    merge:{label:"void merge(arr, left, mid, right)",lines:[
+      {id:"mg0",t:"void merge(int arr[], int left, int mid, int right) {"},
+      {id:"mg1",t:"    int n1 = mid - left + 1;"},{id:"mg2",t:"    int n2 = right - mid;"},
+      {id:"mg3",t:"    int L[n1], R[n2];"},
+      {id:"mg4",t:"    for (int i = 0; i < n1; i++)"},{id:"mg5",t:"        L[i] = arr[left + i];"},
+      {id:"mg6",t:"    for (int j = 0; j < n2; j++)"},{id:"mg7",t:"        R[j] = arr[mid + 1 + j];"},
+      {id:"mg8",t:"    int i = 0, j = 0, k = left;"},
+      {id:"mg9",t:"    while (i < n1 && j < n2) {"},
+      {id:"mg10",t:"        if (L[i] <= R[j]) {"},{id:"mg11",t:"            arr[k] = L[i]; i++;"},
+      {id:"mg12",t:"        } else {"},{id:"mg13",t:"            arr[k] = R[j]; j++;"},
+      {id:"mg14",t:"        }"},{id:"mg15",t:"        k++;"},{id:"mg16",t:"    }"},
+      {id:"mg17",t:"    while (i < n1) { arr[k] = L[i]; i++; k++; }"},
+      {id:"mg18",t:"    while (j < n2) { arr[k] = R[j]; j++; k++; }"},{id:"mg19",t:"}"},
+    ]},
+    mergeSort:{label:"void mergeSort(arr, left, right)",lines:[
+      {id:"ms0",t:"void mergeSort(int arr[], int left, int right) {"},
+      {id:"ms1",t:"    if (left < right) {"},
+      {id:"ms2",t:"        int mid = (left + right) / 2;"},
+      {id:"ms3",t:"        mergeSort(arr, left, mid);"},
+      {id:"ms4",t:"        mergeSort(arr, mid + 1, right);"},
+      {id:"ms5",t:"        merge(arr, left, mid, right);"},{id:"ms6",t:"    }"},{id:"ms7",t:"}"},
+    ]},
+    main:{label:"int main()",lines:[
+      {id:"mm0",t:"int main() {"},{id:"mm1",t:"    int arr[] = {6,2,8,4,10,1,7,3,9,5};"},
+      {id:"mm2",t:"    mergeSort(arr, 0, 9);"},
+      {id:"mm3",t:"    for (int i = 0; i < 10; i++)"},
+      {id:"mm4",t:'        cout << arr[i] << " ";'},{id:"mm5",t:"    return 0;"},{id:"mm6",t:"}"},
+    ]}
+  },
+  python:{
+    merge:{label:"def merge(arr, left, mid, right)",lines:[
+      {id:"mg0",t:"def merge(arr, left, mid, right):"},
+      {id:"mg1",t:"    L = arr[left : mid+1]"},{id:"mg2",t:"    R = arr[mid+1 : right+1]"},
+      {id:"mg8",t:"    i = j = 0; k = left"},
+      {id:"mg9",t:"    while i < len(L) and j < len(R):"},
+      {id:"mg10",t:"        if L[i] <= R[j]:"},{id:"mg11",t:"            arr[k] = L[i]; i += 1"},
+      {id:"mg12",t:"        else:"},{id:"mg13",t:"            arr[k] = R[j]; j += 1"},
+      {id:"mg15",t:"        k += 1"},
+      {id:"mg17",t:"    while i < len(L): arr[k] = L[i]; i += 1; k += 1"},
+      {id:"mg18",t:"    while j < len(R): arr[k] = R[j]; j += 1; k += 1"},
+    ]},
+    mergeSort:{label:"def merge_sort(arr, left, right)",lines:[
+      {id:"ms0",t:"def merge_sort(arr, left, right):"},
+      {id:"ms1",t:"    if left < right:"},
+      {id:"ms2",t:"        mid = (left + right) // 2"},
+      {id:"ms3",t:"        merge_sort(arr, left, mid)"},
+      {id:"ms4",t:"        merge_sort(arr, mid + 1, right)"},
+      {id:"ms5",t:"        merge(arr, left, mid, right)"},
+    ]},
+    main:{label:"main block",lines:[
+      {id:"mm0",t:'if __name__ == "__main__":'},
+      {id:"mm1",t:"    arr = [6,2,8,4,10,1,7,3,9,5]"},
+      {id:"mm2",t:"    merge_sort(arr, 0, len(arr)-1)"},{id:"mm3",t:"    print(*arr)"},
+    ]}
+  },
+  java:{
+    merge:{label:"void merge(arr, left, mid, right)",lines:[
+      {id:"mg0",t:"static void merge(int[] arr, int left, int mid, int right) {"},
+      {id:"mg1",t:"    int n1 = mid - left + 1, n2 = right - mid;"},
+      {id:"mg3",t:"    int[] L = new int[n1], R = new int[n2];"},
+      {id:"mg4",t:"    for (int i = 0; i < n1; i++) L[i] = arr[left + i];"},
+      {id:"mg6",t:"    for (int j = 0; j < n2; j++) R[j] = arr[mid + 1 + j];"},
+      {id:"mg8",t:"    int i = 0, j = 0, k = left;"},
+      {id:"mg9",t:"    while (i < n1 && j < n2) {"},
+      {id:"mg10",t:"        if (L[i] <= R[j]) arr[k++] = L[i++];"},{id:"mg12",t:"        else arr[k++] = R[j++];"},{id:"mg16",t:"    }"},
+      {id:"mg17",t:"    while (i < n1) arr[k++] = L[i++];"},
+      {id:"mg18",t:"    while (j < n2) arr[k++] = R[j++];"},{id:"mg19",t:"}"},
+    ]},
+    mergeSort:{label:"void mergeSort(arr, left, right)",lines:[
+      {id:"ms0",t:"static void mergeSort(int[] arr, int left, int right) {"},
+      {id:"ms1",t:"    if (left < right) {"},
+      {id:"ms2",t:"        int mid = (left + right) / 2;"},
+      {id:"ms3",t:"        mergeSort(arr, left, mid);"},
+      {id:"ms4",t:"        mergeSort(arr, mid + 1, right);"},
+      {id:"ms5",t:"        merge(arr, left, mid, right);"},{id:"ms6",t:"    }"},{id:"ms7",t:"}"},
+    ]},
+    main:{label:"main()",lines:[
+      {id:"mm0",t:"public static void main(String[] args) {"},{id:"mm1",t:"    int[] arr = {6,2,8,4,10,1,7,3,9,5};"},
+      {id:"mm2",t:"    mergeSort(arr, 0, arr.length-1);"},
+      {id:"mm3",t:"    for (int x : arr)"},{id:"mm4",t:'        System.out.print(x + " ");'},{id:"mm5",t:"}"},
+    ]}
+  },
+  rust:{
+    merge:{label:"fn merge(arr, left, mid, right)",lines:[
+      {id:"mg0",t:"fn merge(arr: &mut [i32], left: usize, mid: usize, right: usize) {"},
+      {id:"mg1",t:"    let l_part: Vec<i32> = arr[left..=mid].to_vec();"},
+      {id:"mg2",t:"    let r_part: Vec<i32> = arr[mid+1..=right].to_vec();"},
+      {id:"mg8",t:"    let (mut i, mut j, mut k) = (0, 0, left);"},
+      {id:"mg9",t:"    while i < l_part.len() && j < r_part.len() {"},
+      {id:"mg10",t:"        if l_part[i] <= r_part[j] { arr[k] = l_part[i]; i += 1; }"},
+      {id:"mg12",t:"        else { arr[k] = r_part[j]; j += 1; }"},
+      {id:"mg15",t:"        k += 1;"},{id:"mg16",t:"    }"},
+      {id:"mg17",t:"    while i < l_part.len() { arr[k] = l_part[i]; i += 1; k += 1; }"},
+      {id:"mg18",t:"    while j < r_part.len() { arr[k] = r_part[j]; j += 1; k += 1; }"},{id:"mg19",t:"}"},
+    ]},
+    mergeSort:{label:"fn merge_sort(arr, left, right)",lines:[
+      {id:"ms0",t:"fn merge_sort(arr: &mut [i32], left: usize, right: usize) {"},
+      {id:"ms1",t:"    if left < right {"},
+      {id:"ms2",t:"        let mid = (left + right) / 2;"},
+      {id:"ms3",t:"        merge_sort(arr, left, mid);"},
+      {id:"ms4",t:"        merge_sort(arr, mid + 1, right);"},
+      {id:"ms5",t:"        merge(arr, left, mid, right);"},{id:"ms6",t:"    }"},{id:"ms7",t:"}"},
+    ]},
+    main:{label:"fn main()",lines:[
+      {id:"mm0",t:"fn main() {"},{id:"mm1",t:"    let mut arr = [6,2,8,4,10,1,7,3,9,5];"},
+      {id:"mm2",t:"    let n = arr.len()-1; merge_sort(&mut arr, 0, n);"},
+      {id:"mm3",t:"    for x in &arr { print!(\"{} \", x); }"},{id:"mm4",t:"}"},
+    ]}
+  }
+},
+
+// ── BST ──────────────────────────────────────────────────
+bst:{
+  cpp:{
+    insertNode:{label:"Node* insertNode(root, data)",lines:[
+      {id:"bi0",t:"Node* insertNode(Node* root, int data) {"},
+      {id:"bi1",t:"    if (root == nullptr)"},{id:"bi2",t:"        return createNode(data);"},
+      {id:"bi3",t:"    if (data < root->data)"},{id:"bi4",t:"        root->left = insertNode(root->left, data);"},
+      {id:"bi5",t:"    else if (data > root->data)"},{id:"bi6",t:"        root->right = insertNode(root->right, data);"},
+      {id:"bi7",t:"    return root;"},{id:"bi8",t:"}"},
+    ]},
+    searchNode:{label:"Node* searchNode(root, key)",lines:[
+      {id:"bs0",t:"Node* searchNode(Node* root, int key) {"},
+      {id:"bs1",t:"    if (root == nullptr || root->data == key)"},{id:"bs2",t:"        return root;"},
+      {id:"bs3",t:"    if (root->data < key)"},{id:"bs4",t:"        return searchNode(root->right, key);"},
+      {id:"bs5",t:"    return searchNode(root->left, key);"},{id:"bs6",t:"}"},
+    ]},
+    deleteNode:{label:"Node* deleteNode(root, data)",lines:[
+      {id:"bd0",t:"Node* deleteNode(Node* root, int data) {"},
+      {id:"bd1",t:"    if (root == nullptr) return root;"},
+      {id:"bd2",t:"    if (data < root->data)"},{id:"bd3",t:"        root->left = deleteNode(root->left, data);"},
+      {id:"bd4",t:"    else if (data > root->data)"},{id:"bd5",t:"        root->right = deleteNode(root->right, data);"},
+      {id:"bd6",t:"    else {"},
+      {id:"bd7",t:"        if (root->left == nullptr) { Node* tmp = root->right; delete root; return tmp; }"},
+      {id:"bd11",t:"        if (root->right == nullptr) { Node* tmp = root->left; delete root; return tmp; }"},
+      {id:"bd15",t:"        Node* tmp = minValueNode(root->right);"},
+      {id:"bd16",t:"        root->data = tmp->data;"},
+      {id:"bd17",t:"        root->right = deleteNode(root->right, tmp->data);"},{id:"bd18",t:"    }"},
+      {id:"bd19",t:"    return root;"},{id:"bd20",t:"}"},
+    ]},
+    inorder:{label:"void inorderTraversal(root)",lines:[
+      {id:"io0",t:"void inorderTraversal(Node* root) {"},
+      {id:"io1",t:"    if (root != nullptr) {"},
+      {id:"io2",t:"        inorderTraversal(root->left);"},
+      {id:"io3",t:'        cout << root->data << " ";'},
+      {id:"io4",t:"        inorderTraversal(root->right);"},{id:"io5",t:"    }"},{id:"io6",t:"}"},
+    ]}
+  },
+  python:{
+    insertNode:{label:"def insert_node(root, data)",lines:[
+      {id:"bi0",t:"def insert_node(root, data):"},
+      {id:"bi1",t:"    if root is None: return Node(data)"},
+      {id:"bi3",t:"    if data < root.data:"},{id:"bi4",t:"        root.left = insert_node(root.left, data)"},
+      {id:"bi5",t:"    elif data > root.data:"},{id:"bi6",t:"        root.right = insert_node(root.right, data)"},
+      {id:"bi7",t:"    return root"},
+    ]},
+    searchNode:{label:"def search_node(root, key)",lines:[
+      {id:"bs0",t:"def search_node(root, key):"},
+      {id:"bs1",t:"    if root is None or root.data == key: return root"},
+      {id:"bs3",t:"    if root.data < key: return search_node(root.right, key)"},
+      {id:"bs5",t:"    return search_node(root.left, key)"},
+    ]},
+    deleteNode:{label:"def delete_node(root, data)",lines:[
+      {id:"bd0",t:"def delete_node(root, data):"},
+      {id:"bd1",t:"    if root is None: return root"},
+      {id:"bd2",t:"    if data < root.data:"},{id:"bd3",t:"        root.left = delete_node(root.left, data)"},
+      {id:"bd4",t:"    elif data > root.data:"},{id:"bd5",t:"        root.right = delete_node(root.right, data)"},
+      {id:"bd6",t:"    else:"},
+      {id:"bd7",t:"        if root.left is None: return root.right"},
+      {id:"bd11",t:"        if root.right is None: return root.left"},
+      {id:"bd15",t:"        tmp = min_value_node(root.right)"},
+      {id:"bd16",t:"        root.data = tmp.data"},
+      {id:"bd17",t:"        root.right = delete_node(root.right, tmp.data)"},
+      {id:"bd19",t:"    return root"},
+    ]},
+    inorder:{label:"def inorder_traversal(root)",lines:[
+      {id:"io0",t:"def inorder_traversal(root):"},
+      {id:"io1",t:"    if root:"},
+      {id:"io2",t:"        inorder_traversal(root.left)"},
+      {id:"io3",t:'        print(root.data, end=" ")'},
+      {id:"io4",t:"        inorder_traversal(root.right)"},
+    ]}
+  },
+  java:{
+    insertNode:{label:"Node insertNode(root, data)",lines:[
+      {id:"bi0",t:"Node insertNode(Node root, int data) {"},
+      {id:"bi1",t:"    if (root == null) return new Node(data);"},
+      {id:"bi3",t:"    if (data < root.data)"},{id:"bi4",t:"        root.left = insertNode(root.left, data);"},
+      {id:"bi5",t:"    else if (data > root.data)"},{id:"bi6",t:"        root.right = insertNode(root.right, data);"},
+      {id:"bi7",t:"    return root;"},{id:"bi8",t:"}"},
+    ]},
+    searchNode:{label:"Node searchNode(root, key)",lines:[
+      {id:"bs0",t:"Node searchNode(Node root, int key) {"},
+      {id:"bs1",t:"    if (root == null || root.data == key) return root;"},
+      {id:"bs3",t:"    if (root.data < key) return searchNode(root.right, key);"},
+      {id:"bs5",t:"    return searchNode(root.left, key);"},{id:"bs6",t:"}"},
+    ]},
+    deleteNode:{label:"Node deleteNode(root, data)",lines:[
+      {id:"bd0",t:"Node deleteNode(Node root, int data) {"},
+      {id:"bd1",t:"    if (root == null) return root;"},
+      {id:"bd2",t:"    if (data < root.data)"},{id:"bd3",t:"        root.left = deleteNode(root.left, data);"},
+      {id:"bd4",t:"    else if (data > root.data)"},{id:"bd5",t:"        root.right = deleteNode(root.right, data);"},
+      {id:"bd6",t:"    else {"},
+      {id:"bd7",t:"        if (root.left == null) return root.right;"},
+      {id:"bd11",t:"        if (root.right == null) return root.left;"},
+      {id:"bd15",t:"        Node tmp = minValueNode(root.right);"},
+      {id:"bd16",t:"        root.data = tmp.data;"},
+      {id:"bd17",t:"        root.right = deleteNode(root.right, tmp.data);"},{id:"bd18",t:"    }"},
+      {id:"bd19",t:"    return root;"},{id:"bd20",t:"}"},
+    ]},
+    inorder:{label:"void inorderTraversal(root)",lines:[
+      {id:"io0",t:"void inorderTraversal(Node root) {"},
+      {id:"io1",t:"    if (root != null) {"},
+      {id:"io2",t:"        inorderTraversal(root.left);"},
+      {id:"io3",t:'        System.out.print(root.data + " ");'},
+      {id:"io4",t:"        inorderTraversal(root.right);"},{id:"io5",t:"    }"},{id:"io6",t:"}"},
+    ]}
+  },
+  rust:{
+    insertNode:{label:"fn insert_node(root, data)",lines:[
+      {id:"bi0",t:"fn insert_node(root: Option<Box<Node>>, data: i32)"},
+      {id:"bi0b",t:"        -> Option<Box<Node>> {"},
+      {id:"bi1",t:"    match root {"},
+      {id:"bi2",t:"        None => Some(Box::new(Node::new(data))),"},
+      {id:"bi3",t:"        Some(mut n) => {"},
+      {id:"bi4",t:"            if data < n.data { n.left = insert_node(n.left.take(), data); }"},
+      {id:"bi5",t:"            else if data > n.data { n.right = insert_node(n.right.take(), data); }"},
+      {id:"bi6",t:"            Some(n)"},{id:"bi7",t:"        }"},{id:"bi8",t:"    }"},{id:"bi9",t:"}"},
+    ]},
+    searchNode:{label:"fn search_node(root, key) -> bool",lines:[
+      {id:"bs0",t:"fn search_node(root: &Option<Box<Node>>, key: i32) -> bool {"},
+      {id:"bs1",t:"    match root {"},
+      {id:"bs2",t:"        None => false,"},
+      {id:"bs3",t:"        Some(n) if n.data == key => true,"},
+      {id:"bs4",t:"        Some(n) if key > n.data => search_node(&n.right, key),"},
+      {id:"bs5",t:"        Some(n) => search_node(&n.left, key),"},{id:"bs6",t:"    }"},{id:"bs7",t:"}"},
+    ]},
+    deleteNode:{label:"fn delete_node(root, data)",lines:[
+      {id:"bd0",t:"fn delete_node(root: Option<Box<Node>>, data: i32)"},
+      {id:"bd0b",t:"        -> Option<Box<Node>> {"},
+      {id:"bd1",t:"    match root {"},
+      {id:"bd2",t:"        None => None,"},
+      {id:"bd3",t:"        Some(mut n) => {"},
+      {id:"bd4",t:"            if data < n.data { n.left = delete_node(n.left.take(), data); }"},
+      {id:"bd5",t:"            else if data > n.data { n.right = delete_node(n.right.take(), data); }"},
+      {id:"bd6",t:"            else {"},
+      {id:"bd7",t:"                if n.left.is_none() { return n.right; }"},
+      {id:"bd11",t:"                if n.right.is_none() { return n.left; }"},
+      {id:"bd15",t:"                let sv = min_val(&n.right); n.data = sv;"},
+      {id:"bd17",t:"                n.right = delete_node(n.right.take(), sv);"},
+      {id:"bd18",t:"            }"},{id:"bd19",t:"            Some(n)"},{id:"bd20",t:"        }"},{id:"bd21",t:"    }"},{id:"bd22",t:"}"},
+    ]},
+    inorder:{label:"fn inorder_traversal(root)",lines:[
+      {id:"io0",t:"fn inorder_traversal(root: &Option<Box<Node>>) {"},
+      {id:"io1",t:"    if let Some(n) = root {"},
+      {id:"io2",t:"        inorder_traversal(&n.left);"},
+      {id:"io3",t:'        print!("{} ", n.data);'},
+      {id:"io4",t:"        inorder_traversal(&n.right);"},{id:"io5",t:"    }"},{id:"io6",t:"}"},
+    ]}
+  }
+},
+
+// ── LINEAR SEARCH ────────────────────────────────────────
+linearsearch:{
+  cpp:{
+    linearSearch:{label:"int linearSearch(arr, size, target)",lines:[
+      {id:"ls0",t:"int linearSearch(int arr[], int size, int target) {"},
+      {id:"ls1",t:"    for (int i = 0; i < size; i++) {"},
+      {id:"ls2",t:"        if (arr[i] == target) {"},
+      {id:"ls3",t:"            return i;"},
+      {id:"ls4",t:"        }"},
+      {id:"ls5",t:"    }"},
+      {id:"ls6",t:"    return -1;"},
+      {id:"ls7",t:"}"},
+    ]},
+    main:{label:"int main()",lines:[
+      {id:"lm0",t:"int main() {"},
+      {id:"lm1",t:"    int arr[] = {14,7,23,3,18,9,31,5,11,27};"},
+      {id:"lm2",t:"    int target = /* your value */;"},
+      {id:"lm3",t:"    int result = linearSearch(arr, 10, target);"},
+      {id:"lm4",t:"    if (result != -1)"},
+      {id:"lm5",t:'        cout << "Found at index " << result << endl;'},
+      {id:"lm6",t:"    else"},
+      {id:"lm7",t:'        cout << "Not found" << endl;'},
+      {id:"lm8",t:"    return 0;"},{id:"lm9",t:"}"},
+    ]}
+  },
+  python:{
+    linearSearch:{label:"def linear_search(arr, target)",lines:[
+      {id:"ls0",t:"def linear_search(arr, target):"},
+      {id:"ls1",t:"    for i in range(len(arr)):"},
+      {id:"ls2",t:"        if arr[i] == target:"},
+      {id:"ls3",t:"            return i"},
+      {id:"ls6",t:"    return -1"},
+    ]},
+    main:{label:"main block",lines:[
+      {id:"lm0",t:'if __name__ == "__main__":'},
+      {id:"lm1",t:"    arr = [14,7,23,3,18,9,31,5,11,27]"},
+      {id:"lm2",t:"    target = # your value"},
+      {id:"lm3",t:"    result = linear_search(arr, target)"},
+      {id:"lm4",t:"    if result != -1:"},
+      {id:"lm5",t:'        print(f"Found at index {result}")'},
+      {id:"lm7",t:'    else: print("Not found")'},
+    ]}
+  },
+  java:{
+    linearSearch:{label:"int linearSearch(arr, size, target)",lines:[
+      {id:"ls0",t:"static int linearSearch(int[] arr, int target) {"},
+      {id:"ls1",t:"    for (int i = 0; i < arr.length; i++) {"},
+      {id:"ls2",t:"        if (arr[i] == target) {"},
+      {id:"ls3",t:"            return i;"},
+      {id:"ls4",t:"        }"},
+      {id:"ls5",t:"    }"},
+      {id:"ls6",t:"    return -1;"},
+      {id:"ls7",t:"}"},
+    ]},
+    main:{label:"main()",lines:[
+      {id:"lm0",t:"public static void main(String[] args) {"},
+      {id:"lm1",t:"    int[] arr = {14,7,23,3,18,9,31,5,11,27};"},
+      {id:"lm2",t:"    int target = /* your value */;"},
+      {id:"lm3",t:"    int result = linearSearch(arr, target);"},
+      {id:"lm4",t:"    if (result != -1)"},
+      {id:"lm5",t:'        System.out.println("Found at index " + result);'},
+      {id:"lm7",t:'    else System.out.println("Not found");'},
+      {id:"lm8",t:"}"},
+    ]}
+  },
+  rust:{
+    linearSearch:{label:"fn linear_search(arr, target) -> Option<usize>",lines:[
+      {id:"ls0",t:"fn linear_search(arr: &[i32], target: i32) -> Option<usize> {"},
+      {id:"ls1",t:"    for (i, &val) in arr.iter().enumerate() {"},
+      {id:"ls2",t:"        if val == target {"},
+      {id:"ls3",t:"            return Some(i);"},
+      {id:"ls4",t:"        }"},
+      {id:"ls5",t:"    }"},
+      {id:"ls6",t:"    None"},
+      {id:"ls7",t:"}"},
+    ]},
+    main:{label:"fn main()",lines:[
+      {id:"lm0",t:"fn main() {"},
+      {id:"lm1",t:"    let arr = [14,7,23,3,18,9,31,5,11,27];"},
+      {id:"lm2",t:"    let target = /* your value */;"},
+      {id:"lm3",t:"    match linear_search(&arr, target) {"},
+      {id:"lm4",t:'        Some(i) => println!("Found at index {}", i),'},
+      {id:"lm6",t:'        None    => println!("Not found"),'},
+      {id:"lm7",t:"    }"},{id:"lm8",t:"}"},
+    ]}
+  }
+},
+
+// ── BINARY SEARCH ────────────────────────────────────────
+binarysearch:{
+  cpp:{
+    binarySearch:{label:"int binarySearch(arr, size, target)",lines:[
+      {id:"bns0",t:"int binarySearch(int arr[], int size, int target) {"},
+      {id:"bns1",t:"    int left  = 0;"},
+      {id:"bns2",t:"    int right = size - 1;"},
+      {id:"bns3",t:"    while (left <= right) {"},
+      {id:"bns4",t:"        int mid = left + (right - left) / 2;"},
+      {id:"bns5",t:"        if (arr[mid] == target) {"},
+      {id:"bns6",t:"            return mid;"},
+      {id:"bns7",t:"        }"},
+      {id:"bns8",t:"        else if (arr[mid] < target) {"},
+      {id:"bns9",t:"            left = mid + 1;"},
+      {id:"bns10",t:"        }"},
+      {id:"bns11",t:"        else {"},
+      {id:"bns12",t:"            right = mid - 1;"},
+      {id:"bns13",t:"        }"},
+      {id:"bns14",t:"    }"},
+      {id:"bns15",t:"    return -1;"},
+      {id:"bns16",t:"}"},
+    ]},
+    main:{label:"int main()",lines:[
+      {id:"bnm0",t:"int main() {"},
+      {id:"bnm1",t:"    int arr[] = {2,5,8,12,16,23,38,45,56,72};"},
+      {id:"bnm2",t:"    int target = /* your value */;"},
+      {id:"bnm3",t:"    int result = binarySearch(arr, 10, target);"},
+      {id:"bnm4",t:"    if (result != -1)"},
+      {id:"bnm5",t:'        cout << "Found at index " << result << endl;'},
+      {id:"bnm6",t:"    else"},
+      {id:"bnm7",t:'        cout << "Not found" << endl;'},
+      {id:"bnm8",t:"    return 0;"},{id:"bnm9",t:"}"},
+    ]}
+  },
+  python:{
+    binarySearch:{label:"def binary_search(arr, target)",lines:[
+      {id:"bns0",t:"def binary_search(arr, target):"},
+      {id:"bns1",t:"    left  = 0"},
+      {id:"bns2",t:"    right = len(arr) - 1"},
+      {id:"bns3",t:"    while left <= right:"},
+      {id:"bns4",t:"        mid = left + (right - left) // 2"},
+      {id:"bns5",t:"        if arr[mid] == target:"},
+      {id:"bns6",t:"            return mid"},
+      {id:"bns8",t:"        elif arr[mid] < target:"},
+      {id:"bns9",t:"            left = mid + 1"},
+      {id:"bns11",t:"        else:"},
+      {id:"bns12",t:"            right = mid - 1"},
+      {id:"bns15",t:"    return -1"},
+    ]},
+    main:{label:"main block",lines:[
+      {id:"bnm0",t:'if __name__ == "__main__":'},
+      {id:"bnm1",t:"    arr = [2,5,8,12,16,23,38,45,56,72]"},
+      {id:"bnm2",t:"    target = # your value"},
+      {id:"bnm3",t:"    result = binary_search(arr, target)"},
+      {id:"bnm4",t:"    if result != -1:"},
+      {id:"bnm5",t:'        print(f"Found at index {result}")'},
+      {id:"bnm7",t:'    else: print("Not found")'},
+    ]}
+  },
+  java:{
+    binarySearch:{label:"int binarySearch(arr, target)",lines:[
+      {id:"bns0",t:"static int binarySearch(int[] arr, int target) {"},
+      {id:"bns1",t:"    int left  = 0;"},
+      {id:"bns2",t:"    int right = arr.length - 1;"},
+      {id:"bns3",t:"    while (left <= right) {"},
+      {id:"bns4",t:"        int mid = left + (right - left) / 2;"},
+      {id:"bns5",t:"        if (arr[mid] == target) {"},
+      {id:"bns6",t:"            return mid;"},{id:"bns7",t:"        }"},
+      {id:"bns8",t:"        else if (arr[mid] < target) {"},
+      {id:"bns9",t:"            left = mid + 1;"},{id:"bns10",t:"        }"},
+      {id:"bns11",t:"        else {"},
+      {id:"bns12",t:"            right = mid - 1;"},{id:"bns13",t:"        }"},
+      {id:"bns14",t:"    }"},
+      {id:"bns15",t:"    return -1;"},{id:"bns16",t:"}"},
+    ]},
+    main:{label:"main()",lines:[
+      {id:"bnm0",t:"public static void main(String[] args) {"},
+      {id:"bnm1",t:"    int[] arr = {2,5,8,12,16,23,38,45,56,72};"},
+      {id:"bnm2",t:"    int target = /* your value */;"},
+      {id:"bnm3",t:"    int result = binarySearch(arr, target);"},
+      {id:"bnm4",t:"    if (result != -1)"},
+      {id:"bnm5",t:'        System.out.println("Found at index " + result);'},
+      {id:"bnm7",t:'    else System.out.println("Not found");'},
+      {id:"bnm8",t:"}"},
+    ]}
+  },
+  rust:{
+    binarySearch:{label:"fn binary_search(arr, target) -> Option<usize>",lines:[
+      {id:"bns0",t:"fn binary_search(arr: &[i32], target: i32) -> Option<usize> {"},
+      {id:"bns1",t:"    let mut left  = 0usize;"},
+      {id:"bns2",t:"    let mut right = arr.len() - 1;"},
+      {id:"bns3",t:"    while left <= right {"},
+      {id:"bns4",t:"        let mid = left + (right - left) / 2;"},
+      {id:"bns5",t:"        if arr[mid] == target {"},
+      {id:"bns6",t:"            return Some(mid);"},{id:"bns7",t:"        }"},
+      {id:"bns8",t:"        else if arr[mid] < target {"},
+      {id:"bns9",t:"            left = mid + 1;"},{id:"bns10",t:"        }"},
+      {id:"bns11",t:"        else {"},
+      {id:"bns12",t:"            if mid == 0 { break; }"},{id:"bns12b",t:"            right = mid - 1;"},{id:"bns13",t:"        }"},
+      {id:"bns14",t:"    }"},
+      {id:"bns15",t:"    None"},{id:"bns16",t:"}"},
+    ]},
+    main:{label:"fn main()",lines:[
+      {id:"bnm0",t:"fn main() {"},
+      {id:"bnm1",t:"    let arr = [2,5,8,12,16,23,38,45,56,72];"},
+      {id:"bnm2",t:"    let target = /* your value */;"},
+      {id:"bnm3",t:"    match binary_search(&arr, target) {"},
+      {id:"bnm4",t:'        Some(i) => println!("Found at index {}", i),'},
+      {id:"bnm6",t:'        None    => println!("Not found"),'},
+      {id:"bnm7",t:"    }"},{id:"bnm8",t:"}"},
+    ]}
+  }
+},
+
+// ── SINGLY LINKED LIST ───────────────────────────────────
+linked:{
+  cpp:{
+    struct:{label:"struct Node",lines:[
+      {id:"s0",t:"struct Node {"},{id:"s1",t:"    int data;"},{id:"s2",t:"    Node* next;"},{id:"s3",t:"};"},
+      {id:"s4",t:"Node* head = nullptr;"},
+    ]},
+    insertNode:{label:"void insertNode(int value)",lines:[
+      {id:"in0",t:"void insertNode(int value) {"},
+      {id:"in1",t:"    Node* newNode = new Node();"},
+      {id:"in2",t:"    newNode->data = value;"},{id:"in3",t:"    newNode->next = head;"},
+      {id:"in4",t:"    head = newNode;"},
+      {id:"in5",t:'    cout << "Inserted successfully." << endl;'},{id:"in6",t:"}"},
+    ]},
+    deleteNode:{label:"void deleteNode(int value)",lines:[
+      {id:"dn0",t:"void deleteNode(int value) {"},
+      {id:"dn1",t:"    if (head == nullptr) {"},{id:"dn2",t:'        cout << "List is empty." << endl;'},{id:"dn3",t:"        return;"},{id:"dn4",t:"    }"},
+      {id:"dn5",t:"    Node* temp = head;"},{id:"dn6",t:"    Node* prev = nullptr;"},
+      {id:"dn7",t:"    if (head->data == value) {"},{id:"dn8",t:"        head = head->next;"},{id:"dn9",t:"        delete temp;"},
+      {id:"dn10",t:'        cout << "Deleted successfully." << endl;'},{id:"dn11",t:"        return;"},{id:"dn12",t:"    }"},
+      {id:"dn13",t:"    while (temp != nullptr && temp->data != value) {"},
+      {id:"dn14",t:"        prev = temp;"},{id:"dn15",t:"        temp = temp->next;"},{id:"dn16",t:"    }"},
+      {id:"dn17",t:"    if (temp == nullptr) {"},{id:"dn18",t:'        cout << "Value not found." << endl;'},{id:"dn19",t:"        return;"},{id:"dn20",t:"    }"},
+      {id:"dn21",t:"    prev->next = temp->next;"},{id:"dn22",t:"    delete temp;"},
+      {id:"dn23",t:'    cout << "Deleted successfully." << endl;'},{id:"dn24",t:"}"},
+    ]},
+    displayList:{label:"void displayList()",lines:[
+      {id:"dl0",t:"void displayList() {"},
+      {id:"dl1",t:"    if (head == nullptr) {"},{id:"dl2",t:'        cout << "List is empty." << endl;'},{id:"dl3",t:"        return;"},{id:"dl4",t:"    }"},
+      {id:"dl5",t:"    Node* temp = head;"},{id:"dl6",t:'    cout << "Linked List: ";'},
+      {id:"dl7",t:"    while (temp != nullptr) {"},{id:"dl8",t:'        cout << temp->data << " -> ";'},
+      {id:"dl9",t:"        temp = temp->next;"},{id:"dl10",t:"    }"},{id:"dl11",t:'    cout << "NULL" << endl;'},{id:"dl12",t:"}"},
+    ]}
+  },
+  python:{
+    struct:{label:"class Node",lines:[
+      {id:"s0",t:"class Node:"},{id:"s1",t:"    def __init__(self, data):"},
+      {id:"s2",t:"        self.data = data"},{id:"s3",t:"        self.next = None"},{id:"s4",t:"head = None"},
+    ]},
+    insertNode:{label:"def insert_node(value)",lines:[
+      {id:"in0",t:"def insert_node(value):"},{id:"in1",t:"    global head"},
+      {id:"in2",t:"    new_node = Node(value)"},{id:"in3",t:"    new_node.next = head"},
+      {id:"in4",t:"    head = new_node"},{id:"in5",t:'    print("Inserted successfully.")'},
+    ]},
+    deleteNode:{label:"def delete_node(value)",lines:[
+      {id:"dn0",t:"def delete_node(value):"},{id:"dn1",t:"    global head"},
+      {id:"dn2",t:"    if head is None:"},{id:"dn3",t:'        print("List is empty.")'},{id:"dn4",t:"        return"},
+      {id:"dn5",t:"    temp = head"},{id:"dn6",t:"    prev = None"},
+      {id:"dn7",t:"    if head.data == value:"},{id:"dn8",t:"        head = head.next"},
+      {id:"dn10",t:'        print("Deleted successfully.")'},{id:"dn11",t:"        return"},
+      {id:"dn13",t:"    while temp and temp.data != value:"},{id:"dn14",t:"        prev = temp"},{id:"dn15",t:"        temp = temp.next"},
+      {id:"dn17",t:"    if temp is None:"},{id:"dn18",t:'        print("Value not found.")'},{id:"dn19",t:"        return"},
+      {id:"dn21",t:"    prev.next = temp.next"},{id:"dn23",t:'    print("Deleted successfully.")'},
+    ]},
+    displayList:{label:"def display_list()",lines:[
+      {id:"dl0",t:"def display_list():"},{id:"dl1",t:"    if head is None:"},{id:"dl2",t:'        print("List is empty.")'},{id:"dl3",t:"        return"},
+      {id:"dl5",t:"    temp = head"},{id:"dl6",t:'    result = "Linked List: "'},
+      {id:"dl7",t:"    while temp:"},{id:"dl8",t:'        result += str(temp.data) + " -> "'},
+      {id:"dl9",t:"        temp = temp.next"},{id:"dl11",t:'    print(result + "None")'},
+    ]}
+  },
+  java:{
+    struct:{label:"class Node",lines:[
+      {id:"s0",t:"class Node {"},{id:"s1",t:"    int data;"},{id:"s2",t:"    Node next;"},
+      {id:"s3",t:"    Node(int d) { data = d; next = null; }"},{id:"s4",t:"}"},{id:"s5",t:"Node head = null;"},
+    ]},
+    insertNode:{label:"void insertNode(int value)",lines:[
+      {id:"in0",t:"void insertNode(int value) {"},
+      {id:"in1",t:"    Node newNode = new Node(value);"},
+      {id:"in3",t:"    newNode.next = head;"},{id:"in4",t:"    head = newNode;"},
+      {id:"in5",t:'    System.out.println("Inserted successfully.");'},{id:"in6",t:"}"},
+    ]},
+    deleteNode:{label:"void deleteNode(int value)",lines:[
+      {id:"dn0",t:"void deleteNode(int value) {"},
+      {id:"dn1",t:"    if (head == null) {"},{id:"dn2",t:'        System.out.println("List is empty.");'},{id:"dn3",t:"        return;"},{id:"dn4",t:"    }"},
+      {id:"dn5",t:"    Node temp = head;"},{id:"dn6",t:"    Node prev = null;"},
+      {id:"dn7",t:"    if (head.data == value) {"},{id:"dn8",t:"        head = head.next;"},
+      {id:"dn10",t:'        System.out.println("Deleted successfully.");'},{id:"dn11",t:"        return;"},{id:"dn12",t:"    }"},
+      {id:"dn13",t:"    while (temp != null && temp.data != value) {"},
+      {id:"dn14",t:"        prev = temp;"},{id:"dn15",t:"        temp = temp.next;"},{id:"dn16",t:"    }"},
+      {id:"dn17",t:"    if (temp == null) {"},{id:"dn18",t:'        System.out.println("Value not found.");'},{id:"dn19",t:"        return;"},{id:"dn20",t:"    }"},
+      {id:"dn21",t:"    prev.next = temp.next;"},{id:"dn23",t:'    System.out.println("Deleted successfully.");'},{id:"dn24",t:"}"},
+    ]},
+    displayList:{label:"void displayList()",lines:[
+      {id:"dl0",t:"void displayList() {"},
+      {id:"dl1",t:"    if (head == null) {"},{id:"dl2",t:'        System.out.println("List is empty.");'},{id:"dl3",t:"        return;"},{id:"dl4",t:"    }"},
+      {id:"dl5",t:"    Node temp = head;"},{id:"dl6",t:'    System.out.print("Linked List: ");'},
+      {id:"dl7",t:"    while (temp != null) {"},{id:"dl8",t:'        System.out.print(temp.data + " -> ");'},
+      {id:"dl9",t:"        temp = temp.next;"},{id:"dl10",t:"    }"},{id:"dl11",t:'    System.out.println("null");'},{id:"dl12",t:"}"},
+    ]}
+  },
+  rust:{
+    struct:{label:"struct Node",lines:[
+      {id:"s0",t:"struct Node {"},{id:"s1",t:"    data: i32,"},{id:"s2",t:"    next: Option<Box<Node>>,"},{id:"s3",t:"}"},
+      {id:"s4",t:"let mut head: Option<Box<Node>> = None;"},
+    ]},
+    insertNode:{label:"fn insert_node(head, value)",lines:[
+      {id:"in0",t:"fn insert_node(head: Option<Box<Node>>, value: i32)"},
+      {id:"in0b",t:"        -> Option<Box<Node>> {"},
+      {id:"in1",t:"    let node = Box::new(Node { data: value, next: head });"},
+      {id:"in5",t:'    println!("Inserted successfully.");'},
+      {id:"in6",t:"    Some(node)"},{id:"in7",t:"}"},
+    ]},
+    deleteNode:{label:"fn delete_node(head, value)",lines:[
+      {id:"dn0",t:"fn delete_node(head: &mut Option<Box<Node>>, value: i32) {"},
+      {id:"dn5",t:"    let mut cur = head;"},
+      {id:"dn13",t:"    loop { match cur.as_mut().unwrap().next.as_ref().map(|n| n.data) {"},
+      {id:"dn15",t:"        Some(d) if d == value => {"},
+      {id:"dn16",t:"            let next = cur.as_mut().unwrap().next.as_mut().unwrap().next.take();"},
+      {id:"dn17",t:"            cur.as_mut().unwrap().next = next; break; }"},
+      {id:"dn20",t:"        None => break,"},{id:"dn21",t:"        _ => { cur = &mut cur.as_mut().unwrap().next; }"},
+      {id:"dn22",t:"    } }"},{id:"dn24",t:"}"},
+    ]},
+    displayList:{label:"fn display_list(head)",lines:[
+      {id:"dl0",t:"fn display_list(head: &Option<Box<Node>>) {"},
+      {id:"dl5",t:"    let mut cur = head.as_deref();"},{id:"dl6",t:'    print!("Linked List: ");'},
+      {id:"dl7",t:"    while let Some(node) = cur {"},{id:"dl8",t:'        print!("{} -> ", node.data);'},
+      {id:"dl9",t:"        cur = node.next.as_deref();"},{id:"dl10",t:"    }"},{id:"dl11",t:'    println!("None");'},{id:"dl12",t:"}"},
+    ]}
+  }
+},
+
+// ── DOUBLY LINKED LIST ───────────────────────────────────
+doubly:{
+  cpp:{
+    struct:{label:"struct Node",lines:[
+      {id:"ds0",t:"struct Node {"},{id:"ds1",t:"    int data;"},{id:"ds2",t:"    Node* prev;"},
+      {id:"ds3",t:"    Node* next;"},{id:"ds4",t:"};"},
+      {id:"ds5",t:"Node* head = nullptr;"},
+    ]},
+    insertNode:{label:"void insertNode(int value)",lines:[
+      {id:"din0",t:"void insertNode(int value) {"},
+      {id:"din1",t:"    Node* newNode = new Node();"},
+      {id:"din2",t:"    newNode->data = value;"},{id:"din3",t:"    newNode->prev = nullptr;"},
+      {id:"din4",t:"    newNode->next = head;"},
+      {id:"din5",t:"    if (head != nullptr) head->prev = newNode;"},
+      {id:"din7",t:"    head = newNode;"},
+      {id:"din8",t:'    cout << "Inserted successfully." << endl;'},{id:"din9",t:"}"},
+    ]},
+    deleteNode:{label:"void deleteNode(int value)",lines:[
+      {id:"ddn0",t:"void deleteNode(int value) {"},
+      {id:"ddn1",t:"    if (head == nullptr) {"},{id:"ddn2",t:'        cout << "List is empty." << endl;'},{id:"ddn3",t:"        return;"},{id:"ddn4",t:"    }"},
+      {id:"ddn5",t:"    Node* temp = head;"},
+      {id:"ddn6",t:"    while (temp != nullptr && temp->data != value)"},{id:"ddn7",t:"        temp = temp->next;"},
+      {id:"ddn8",t:"    if (temp == nullptr) {"},{id:"ddn9",t:'        cout << "Value not found." << endl;'},{id:"ddn10",t:"        return;"},{id:"ddn11",t:"    }"},
+      {id:"ddn12",t:"    if (temp == head) {"},
+      {id:"ddn13",t:"        head = temp->next;"},{id:"ddn14",t:"        if (head != nullptr) head->prev = nullptr;"},{id:"ddn15",t:"    } else {"},
+      {id:"ddn17",t:"        temp->prev->next = temp->next;"},
+      {id:"ddn18",t:"        if (temp->next != nullptr) temp->next->prev = temp->prev;"},{id:"ddn20",t:"    }"},
+      {id:"ddn21",t:"    delete temp;"},{id:"ddn22",t:'    cout << "Deleted successfully." << endl;'},{id:"ddn23",t:"}"},
+    ]},
+    displayList:{label:"void displayList()",lines:[
+      {id:"ddl0",t:"void displayList() {"},
+      {id:"ddl1",t:"    if (head == nullptr) {"},{id:"ddl2",t:'        cout << "List is empty." << endl;'},{id:"ddl3",t:"        return;"},{id:"ddl4",t:"    }"},
+      {id:"ddl5",t:"    Node* temp = head;"},{id:"ddl6",t:'    cout << "Doubly Linked List: ";'},
+      {id:"ddl7",t:"    while (temp != nullptr) {"},{id:"ddl8",t:'        cout << temp->data << " <-> ";'},
+      {id:"ddl9",t:"        temp = temp->next;"},{id:"ddl10",t:"    }"},{id:"ddl11",t:'    cout << "NULL" << endl;'},{id:"ddl12",t:"}"},
+    ]}
+  },
+  python:{
+    struct:{label:"class Node",lines:[
+      {id:"ds0",t:"class Node:"},{id:"ds1",t:"    def __init__(self, data):"},
+      {id:"ds2",t:"        self.data = data"},{id:"ds3",t:"        self.prev = None"},
+      {id:"ds4",t:"        self.next = None"},{id:"ds5",t:"head = None"},
+    ]},
+    insertNode:{label:"def insert_node(value)",lines:[
+      {id:"din0",t:"def insert_node(value):"},{id:"din1",t:"    global head"},
+      {id:"din2",t:"    new_node = Node(value)"},{id:"din3",t:"    new_node.prev = None"},
+      {id:"din4",t:"    new_node.next = head"},
+      {id:"din5",t:"    if head is not None: head.prev = new_node"},
+      {id:"din7",t:"    head = new_node"},{id:"din8",t:'    print("Inserted successfully.")'},
+    ]},
+    deleteNode:{label:"def delete_node(value)",lines:[
+      {id:"ddn0",t:"def delete_node(value):"},{id:"ddn1",t:"    global head"},
+      {id:"ddn2",t:"    if head is None:"},{id:"ddn3",t:'        print("List is empty.")'},{id:"ddn4",t:"        return"},
+      {id:"ddn5",t:"    temp = head"},
+      {id:"ddn6",t:"    while temp and temp.data != value:"},{id:"ddn7",t:"        temp = temp.next"},
+      {id:"ddn8",t:"    if temp is None:"},{id:"ddn9",t:'        print("Value not found.")'},{id:"ddn10",t:"        return"},
+      {id:"ddn12",t:"    if temp == head:"},
+      {id:"ddn13",t:"        head = temp.next"},{id:"ddn14",t:"        if head: head.prev = None"},{id:"ddn15",t:"    else:"},
+      {id:"ddn17",t:"        temp.prev.next = temp.next"},
+      {id:"ddn18",t:"        if temp.next: temp.next.prev = temp.prev"},
+      {id:"ddn22",t:'    print("Deleted successfully.")'},
+    ]},
+    displayList:{label:"def display_list()",lines:[
+      {id:"ddl0",t:"def display_list():"},{id:"ddl1",t:"    if head is None:"},{id:"ddl2",t:'        print("List is empty.")'},{id:"ddl3",t:"        return"},
+      {id:"ddl5",t:"    temp = head"},{id:"ddl6",t:'    result = "Doubly Linked List: "'},
+      {id:"ddl7",t:"    while temp:"},{id:"ddl8",t:'        result += str(temp.data) + " <-> "'},
+      {id:"ddl9",t:"        temp = temp.next"},{id:"ddl11",t:'    print(result + "None")'},
+    ]}
+  },
+  java:{
+    struct:{label:"class Node",lines:[
+      {id:"ds0",t:"class Node {"},{id:"ds1",t:"    int data;"},{id:"ds2",t:"    Node prev, next;"},
+      {id:"ds3",t:"    Node(int d) { data = d; prev = null; next = null; }"},{id:"ds4",t:"}"},{id:"ds5",t:"Node head = null;"},
+    ]},
+    insertNode:{label:"void insertNode(int value)",lines:[
+      {id:"din0",t:"void insertNode(int value) {"},
+      {id:"din1",t:"    Node newNode = new Node(value);"},
+      {id:"din3",t:"    newNode.prev = null;"},{id:"din4",t:"    newNode.next = head;"},
+      {id:"din5",t:"    if (head != null) head.prev = newNode;"},
+      {id:"din7",t:"    head = newNode;"},
+      {id:"din8",t:'    System.out.println("Inserted successfully.");'},{id:"din9",t:"}"},
+    ]},
+    deleteNode:{label:"void deleteNode(int value)",lines:[
+      {id:"ddn0",t:"void deleteNode(int value) {"},
+      {id:"ddn1",t:"    if (head == null) {"},{id:"ddn2",t:'        System.out.println("List is empty.");'},{id:"ddn3",t:"        return;"},{id:"ddn4",t:"    }"},
+      {id:"ddn5",t:"    Node temp = head;"},
+      {id:"ddn6",t:"    while (temp != null && temp.data != value)"},{id:"ddn7",t:"        temp = temp.next;"},
+      {id:"ddn8",t:"    if (temp == null) {"},{id:"ddn9",t:'        System.out.println("Value not found.");'},{id:"ddn10",t:"        return;"},{id:"ddn11",t:"    }"},
+      {id:"ddn12",t:"    if (temp == head) {"},
+      {id:"ddn13",t:"        head = temp.next;"},{id:"ddn14",t:"        if (head != null) head.prev = null;"},{id:"ddn15",t:"    } else {"},
+      {id:"ddn17",t:"        temp.prev.next = temp.next;"},
+      {id:"ddn18",t:"        if (temp.next != null) temp.next.prev = temp.prev;"},{id:"ddn20",t:"    }"},
+      {id:"ddn22",t:'    System.out.println("Deleted successfully.");'},{id:"ddn23",t:"}"},
+    ]},
+    displayList:{label:"void displayList()",lines:[
+      {id:"ddl0",t:"void displayList() {"},
+      {id:"ddl1",t:"    if (head == null) {"},{id:"ddl2",t:'        System.out.println("List is empty.");'},{id:"ddl3",t:"        return;"},{id:"ddl4",t:"    }"},
+      {id:"ddl5",t:"    Node temp = head;"},{id:"ddl6",t:'    System.out.print("Doubly Linked List: ");'},
+      {id:"ddl7",t:"    while (temp != null) {"},{id:"ddl8",t:'        System.out.print(temp.data + " <-> ");'},
+      {id:"ddl9",t:"        temp = temp.next;"},{id:"ddl10",t:"    }"},{id:"ddl11",t:'    System.out.println("null");'},{id:"ddl12",t:"}"},
+    ]}
+  },
+  rust:{
+    struct:{label:"struct / DLL (LinkedList)",lines:[
+      {id:"ds0",t:"use std::collections::LinkedList;"},
+      {id:"ds2",t:"struct DLL { list: LinkedList<i32> }"},
+    ]},
+    insertNode:{label:"fn insert_node(&mut self, value: i32)",lines:[
+      {id:"din0",t:"fn insert_node(&mut self, value: i32) {"},
+      {id:"din4",t:"    self.list.push_front(value);"},
+      {id:"din8",t:'    println!("Inserted successfully.");'},{id:"din9",t:"}"},
+    ]},
+    deleteNode:{label:"fn delete_node(&mut self, value: i32)",lines:[
+      {id:"ddn0",t:"fn delete_node(&mut self, value: i32) {"},
+      {id:"ddn1",t:"    if self.list.is_empty() {"},{id:"ddn2",t:'        println!("List is empty.");'},{id:"ddn3",t:"        return;"},{id:"ddn4",t:"    }"},
+      {id:"ddn5",t:"    let mut cur = self.list.cursor_front_mut();"},
+      {id:"ddn6",t:"    loop { match cur.current() {"},
+      {id:"ddn8",t:"        Some(v) if *v == value => { cur.remove_current();"},
+      {id:"ddn9",t:'            println!("Deleted successfully."); break; }'},
+      {id:"ddn13",t:'        None => { println!("Value not found."); break; }'},
+      {id:"ddn14",t:"        _ => cur.move_next(),"},{id:"ddn15",t:"    } }"},{id:"ddn23",t:"}"},
+    ]},
+    displayList:{label:"fn display_list(&self)",lines:[
+      {id:"ddl0",t:"fn display_list(&self) {"},
+      {id:"ddl1",t:"    if self.list.is_empty() {"},{id:"ddl2",t:'        println!("List is empty.");'},{id:"ddl3",t:"        return;"},{id:"ddl4",t:"    }"},
+      {id:"ddl5",t:'    print!("Doubly Linked List: ");'},
+      {id:"ddl7",t:"    for val in &self.list {"},{id:"ddl8",t:'        print!("{} <-> ", val);'},{id:"ddl9",t:"    }"},
+      {id:"ddl11",t:'    println!("None");'},{id:"ddl12",t:"}"},
+    ]}
+  }
+}
+
+}; // end CODE
+
+// ═══════════════════════════════════════════
+// SYNTAX HIGHLIGHT
+// ═══════════════════════════════════════════
+const KW={
+  cpp:['void','int','if','while','for','return','swap','cout','endl','struct','new','delete','nullptr','Node','bool','true','false','else','static'],
+  python:['def','if','while','for','return','print','None','True','False','and','or','not','in','class','self','global','is','else','elif','range','len','enumerate'],
+  java:['void','int','if','while','for','return','null','class','new','static','public','private','System','Node','boolean','true','false','else'],
+  rust:['fn','let','mut','if','while','for','return','println','print','Some','None','true','false','struct','impl','Box','Option','usize','i32','use','std','loop','match','break','in','Vec']
+};
+function highlight(text,lang){
+  const kws=KW[lang]||KW.cpp;
+  return text
+    .replace(/\/\/.*/g,m=>`<span class="cmt">${m}</span>`)
+    .replace(/"[^"]*"/g,m=>`<span class="str">${m}</span>`)
+    .replace(/#.*/g,m=>lang==='python'?`<span class="cmt">${m}</span>`:m)
+    .replace(/\b(\d+)\b/g,'<span class="num">$1</span>')
+    .replace(new RegExp(`\\b(${kws.join('|')})\\b`,'g'),'<span class="kw">$1</span>');
+}
+
+// ═══════════════════════════════════════════
+// CODE PANEL & TABS
+// ═══════════════════════════════════════════
+function getSections(){return CODE[currentMode]?.[currentLang]||{};}
+function buildCodePanel(){
+  const sections=getSections(),panel=document.getElementById('code-panel');
+  panel.innerHTML='';let gl=1;
+  Object.entries(sections).forEach(([,sec])=>{
+    const lbl=document.createElement('div');lbl.className='fn-label';lbl.textContent=sec.label;panel.appendChild(lbl);
+    sec.lines.forEach(line=>{
+      const div=document.createElement('div');div.className='code-line';div.dataset.id=line.id;
+      div.innerHTML=`<span class="ln">${gl++}</span><span class="arrow">▶</span><span class="code-text">${highlight(line.t,currentLang)}</span>`;
+      panel.appendChild(div);
+    });
+  });
+}
+function buildTabs(){
+  const sections=getSections(),row=document.getElementById('fn-row');row.innerHTML='';
+  Object.entries(sections).forEach(([key,sec],i)=>{
+    const b=document.createElement('button');b.className='fn-tab'+(i===0?' active':'');b.dataset.fn=key;
+    b.textContent=key+'()';
+    b.onclick=()=>{
+      document.querySelectorAll('.fn-tab').forEach(t=>t.classList.remove('active'));b.classList.add('active');
+      const el=document.querySelector(`[data-id="${sec.lines[0].id}"]`);
+      if(el)el.scrollIntoView({block:'start',behavior:'smooth'});
+    };
+    row.appendChild(b);
+  });
+}
+function applyHighlight(ids){
+  document.querySelectorAll('.code-line').forEach(el=>{
+    const hl=ids.includes(el.dataset.id);el.classList.toggle('hl',hl);
+    if(hl)el.scrollIntoView({block:'nearest',behavior:'smooth'});
+  });
+}
+function switchLang(lang){
+  currentLang=lang;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));
+  buildCodePanel();buildTabs();
+  if(stepIdx>=0&&steps[stepIdx])applyHighlight(steps[stepIdx].hl||[]);
+}
+
+// ═══════════════════════════════════════════
+// LEGEND
+// ═══════════════════════════════════════════
+function buildLegend(){
+  const lg=document.getElementById('legend');
+  const L={
+    heap:`<div class="leg"><div class="leg-dot" style="background:#22c55e"></div>root</div><div class="leg"><div class="leg-dot" style="background:#3b82f6"></div>active</div><div class="leg"><div class="leg-dot" style="background:#f59e0b"></div>swap</div><div style="margin-left:auto;font-size:10px;color:#1e3a5f">max-heap</div>`,
+    bubble:`<div class="leg"><div class="leg-dot" style="background:#3b82f6"></div>comparing</div><div class="leg"><div class="leg-dot" style="background:#f59e0b"></div>swap</div><div class="leg"><div class="leg-dot" style="background:#22c55e"></div>sorted</div><div style="margin-left:auto;font-size:10px;color:#1e3a5f">bubble sort</div>`,
+    selection:`<div class="leg"><div class="leg-dot" style="background:#3b82f6"></div>scanning</div><div class="leg"><div class="leg-dot" style="background:#f43f5e"></div>min</div><div class="leg"><div class="leg-dot" style="background:#f59e0b"></div>swap</div><div class="leg"><div class="leg-dot" style="background:#22c55e"></div>sorted</div><div style="margin-left:auto;font-size:10px;color:#1e3a5f">selection sort</div>`,
+    insertion:`<div class="leg"><div class="leg-dot" style="background:#a78bfa"></div>key</div><div class="leg"><div class="leg-dot" style="background:#ca8a04"></div>shifting</div><div class="leg"><div class="leg-dot" style="background:#22c55e"></div>sorted</div><div style="margin-left:auto;font-size:10px;color:#1e3a5f">insertion sort</div>`,
+    quicksort:`<div class="leg"><div class="leg-dot" style="background:#f43f5e"></div>pivot</div><div class="leg"><div class="leg-dot" style="background:#06b6d4"></div>range</div><div class="leg"><div class="leg-dot" style="background:#f59e0b"></div>swap</div><div class="leg"><div class="leg-dot" style="background:#22c55e"></div>placed</div><div style="margin-left:auto;font-size:10px;color:#1e3a5f">quick sort</div>`,
+    mergesort:`<div class="leg"><div class="leg-dot" style="background:#06b6d4"></div>left</div><div class="leg"><div class="leg-dot" style="background:#f97316"></div>right</div><div class="leg"><div class="leg-dot" style="background:#8b5cf6"></div>merging</div><div class="leg"><div class="leg-dot" style="background:#22c55e"></div>sorted</div><div style="margin-left:auto;font-size:10px;color:#1e3a5f">merge sort</div>`,
+    bst:`<div class="leg"><div class="leg-dot" style="background:#3b82f6"></div>current</div><div class="leg"><div class="leg-dot" style="background:#22c55e"></div>found</div><div class="leg"><div class="leg-dot" style="background:#ef4444"></div>deleted</div><div style="margin-left:auto;font-size:10px;color:#1e3a5f">BST</div>`,
+    linearsearch:`<div class="leg"><div class="leg-dot" style="background:#3b82f6"></div>scanning</div><div class="leg"><div class="leg-dot" style="background:#22c55e"></div>found</div><div class="leg"><div class="leg-dot" style="background:#334155"></div>passed</div><div style="margin-left:auto;font-size:10px;color:#1e3a5f">linear search</div>`,
+    binarysearch:`<div class="leg"><div class="leg-dot" style="background:#06b6d4"></div>left range</div><div class="leg"><div class="leg-dot" style="background:#f97316"></div>right range</div><div class="leg"><div class="leg-dot" style="background:#a78bfa"></div>mid</div><div class="leg"><div class="leg-dot" style="background:#22c55e"></div>found</div><div style="margin-left:auto;font-size:10px;color:#1e3a5f">binary search</div>`,
+    linked:`<div class="leg"><div class="leg-dot" style="background:#22c55e"></div>head</div><div class="leg"><div class="leg-dot" style="background:#3b82f6"></div>current</div><div class="leg"><div class="leg-dot" style="background:#ef4444"></div>deleted</div><div style="margin-left:auto;font-size:10px;color:#1e3a5f">singly LL</div>`,
+    doubly:`<div class="leg"><div class="leg-dot" style="background:#22c55e"></div>head</div><div class="leg"><div class="leg-dot" style="background:#3b82f6"></div>current</div><div class="leg"><div class="leg-dot" style="background:#ef4444"></div>deleted</div><div style="margin-left:auto;font-size:10px;color:#1e3a5f">doubly LL</div>`,
+  };
+  lg.innerHTML=L[currentMode]||'';
+}
+
+// ═══════════════════════════════════════════
+// SEARCH STEP BUILDERS
+// ═══════════════════════════════════════════
+// step for search: arr, hl, msg, state per index ('normal'|'active'|'found'|'elim'|'left'|'right'|'mid'), fn
+function mkSrch(arr,hl,msg,states,fn){
+  return{arr:[...arr],hl,msg,states:[...states],fn,isSearch:true};
+}
+
+function buildLinearSearch(arr,target){
+  const s=[],n=arr.length;
+  const states=Array(n).fill('normal');
+  s.push(mkSrch(arr,["lm0","lm1","lm2","lm3"],`Array: [${arr}]  →  Search for ${target}`,[...states],'linearSearch'));
+  for(let i=0;i<n;i++){
+    const st=[...states];
+    st[i]='active';
+    s.push(mkSrch(arr,["ls1","ls2"],`Check arr[${i}]=${arr[i]} == ${target}? ${arr[i]===target?"YES ✓":"No"}`,st,'linearSearch'));
+    if(arr[i]===target){
+      st[i]='found';
+      s.push(mkSrch(arr,["ls3"],`Found ${target} at index ${i} ✓`,st,'linearSearch'));
+      return s;
+    }
+    states[i]='elim';
+  }
+  s.push(mkSrch(arr,["ls6"],`${target} not found — return -1`,[...states],'linearSearch'));
+  return s;
+}
+
+function buildBinarySearch(arr,target){
+  const s=[],n=arr.length;
+  const states=Array(n).fill('normal');
+  s.push(mkSrch(arr,["bnm0","bnm1","bnm2","bnm3"],`Sorted array: [${arr}]  →  Search for ${target}`,[...states],'binarySearch'));
+  s.push(mkSrch(arr,["bns1","bns2"],`left=0, right=${n-1}`,[...states],'binarySearch'));
+  let left=0,right=n-1;
+  while(left<=right){
+    const st=Array(n).fill('elim');
+    for(let k=left;k<=right;k++)st[k]='normal';
+    const mid=left+Math.floor((right-left)/2);
+    for(let k=left;k<mid;k++)st[k]='s-left';
+    for(let k=mid+1;k<=right;k++)st[k]='s-right';
+    st[mid]='s-mid';
+    s.push(mkSrch(arr,["bns3","bns4"],`left=${left}, right=${right} → mid=${mid}, arr[${mid}]=${arr[mid]}`,st,'binarySearch'));
+    if(arr[mid]===target){
+      const sf=[...st];sf[mid]='found';
+      s.push(mkSrch(arr,["bns5","bns6"],`arr[${mid}]=${arr[mid]} == ${target} → Found at index ${mid} ✓`,sf,'binarySearch'));
+      return s;
+    } else if(arr[mid]<target){
+      s.push(mkSrch(arr,["bns8","bns9"],`arr[${mid}]=${arr[mid]} < ${target} → search RIGHT half`,st,'binarySearch'));
+      left=mid+1;
+    } else {
+      s.push(mkSrch(arr,["bns11","bns12"],`arr[${mid}]=${arr[mid]} > ${target} → search LEFT half`,st,'binarySearch'));
+      right=mid-1;
+    }
+  }
+  const allElim=Array(n).fill('elim');
+  s.push(mkSrch(arr,["bns15"],`${target} not found — return -1`,allElim,'binarySearch'));
+  return s;
+}
+
+// ═══════════════════════════════════════════
+// SEARCH RENDERER
+// ═══════════════════════════════════════════
+function renderSearch(wrapId,arr,states){
+  const wrap=document.getElementById(wrapId);
+  wrap.style.display='flex';wrap.style.alignItems='center';wrap.style.justifyContent='center';
+  wrap.style.gap='4px';wrap.style.padding='20px 12px';wrap.style.flexWrap='wrap';
+  wrap.innerHTML='';
+  arr.forEach((v,i)=>{
+    const cls=states?states[i]||'normal':'normal';
+    const sbarClass={'found':'s-found','active':'s-active','elim':'s-elim','s-left':'s-left','s-right':'s-right','s-mid':'s-mid','normal':''}[cls]||'';
+    const col=document.createElement('div');col.className='bar-col';
+    col.innerHTML=`<div class="sbar${sbarClass?' '+sbarClass:''}">${v}</div><span class="bar-idx">[${i}]</span>`;
+    wrap.appendChild(col);
+  });
+}
+function renderSearchArray(arr,states){
+  const bar=document.getElementById('array-bar');bar.innerHTML='';
+  arr.forEach((v,i)=>{
+    const cls=states?states[i]||'normal':'normal';
+    const cellClass={'found':'s-found','active':'s-active','elim':'s-elim','s-left':'s-left','s-right':'s-right','s-mid':'s-mid','normal':''}[cls]||'';
+    const cell=document.createElement('div');cell.className=`arr-cell${cellClass?' '+cellClass:''}`;
+    cell.innerHTML=`<span>${v}</span><span class="cidx">[${i}]</span>`;
+    bar.appendChild(cell);
+  });
+}
+
+// ═══════════════════════════════════════════
+// BST LOGIC
+// ═══════════════════════════════════════════
+function bstInsert(r,v){if(!r)return{val:v,left:null,right:null};if(v<r.val)return{...r,left:bstInsert(r.left,v)};if(v>r.val)return{...r,right:bstInsert(r.right,v)};return r;}
+function bstDelete(r,v){if(!r)return null;if(v<r.val)return{...r,left:bstDelete(r.left,v)};if(v>r.val)return{...r,right:bstDelete(r.right,v)};if(!r.left)return r.right;if(!r.right)return r.left;let s=r.right;while(s.left)s=s.left;return{...r,val:s.val,right:bstDelete(r.right,s.val)};}
+function deepCopy(r){if(!r)return null;return{val:r.val,left:deepCopy(r.left),right:deepCopy(r.right)};}
+function bstSize(r){if(!r)return 0;return 1+bstSize(r.left)+bstSize(r.right);}
+
+function mkBST(root,hl,msg,active=null,found=null,deleted=null,fn='insertNode'){
+  return{root:deepCopy(root),hl,msg,active,found,deleted,fn,isBST:true};
+}
+function buildBSTInsert(root,val){
+  const s=[];s.push(mkBST(root,["bi0"],`insertNode(root, ${val})`,null,null,null,'insertNode'));
+  function trav(node){if(!node){s.push(mkBST(root,["bi1","bi2"],`nullptr → create node(${val})`,null,null,null,'insertNode'));return;}
+    s.push(mkBST(root,["bi3"],`Compare ${val} with ${node.val}`,node.val,null,null,'insertNode'));
+    if(val<node.val){s.push(mkBST(root,["bi3","bi4"],`${val} < ${node.val} → go LEFT`,node.val,null,null,'insertNode'));trav(node.left);}
+    else if(val>node.val){s.push(mkBST(root,["bi5","bi6"],`${val} > ${node.val} → go RIGHT`,node.val,null,null,'insertNode'));trav(node.right);}
+  }
+  trav(root);const newRoot=bstInsert(root,val);
+  s.push(mkBST(newRoot,["bi7"],`Node(${val}) inserted ✓`,val,null,null,'insertNode'));
+  return{steps:s,newRoot};
+}
+function buildBSTSearch(root,key){
+  const s=[];s.push(mkBST(root,["bs0"],`searchNode(root, ${key})`,null,null,null,'searchNode'));
+  function trav(node){if(!node){s.push(mkBST(root,["bs1"],`nullptr → ${key} NOT FOUND`,null,null,null,'searchNode'));return;}
+    if(node.val===key){s.push(mkBST(root,["bs1"],`Found ${key} ✓`,null,key,null,'searchNode'));return;}
+    s.push(mkBST(root,["bs3"],`Compare ${key} with ${node.val}`,node.val,null,null,'searchNode'));
+    if(node.val<key){s.push(mkBST(root,["bs3","bs4"],`${node.val} < ${key} → RIGHT`,node.val,null,null,'searchNode'));trav(node.right);}
+    else{s.push(mkBST(root,["bs3","bs5"],`${node.val} > ${key} → LEFT`,node.val,null,null,'searchNode'));trav(node.left);}
+  }
+  trav(root);return s;
+}
+function buildBSTDelete(root,val){
+  const s=[];s.push(mkBST(root,["bd0"],`deleteNode(root, ${val})`,null,null,null,'deleteNode'));
+  function trav(node){if(!node){s.push(mkBST(root,["bd1"],`nullptr → not found`,null,null,null,'deleteNode'));return;}
+    if(val<node.val){s.push(mkBST(root,["bd2","bd3"],`${val} < ${node.val} → LEFT`,node.val,null,null,'deleteNode'));trav(node.left);}
+    else if(val>node.val){s.push(mkBST(root,["bd4","bd5"],`${val} > ${node.val} → RIGHT`,node.val,null,null,'deleteNode'));trav(node.right);}
+    else{s.push(mkBST(root,["bd6"],`Found node(${val}) to delete`,node.val,null,null,'deleteNode'));
+      if(!node.left)s.push(mkBST(root,["bd7"],`No left child → replace with right`,null,null,val,'deleteNode'));
+      else if(!node.right)s.push(mkBST(root,["bd11"],`No right child → replace with left`,null,null,val,'deleteNode'));
+      else{let s2=node.right;while(s2.left)s2=s2.left;s.push(mkBST(root,["bd15","bd16","bd17"],`Inorder successor = ${s2.val}`,s2.val,null,val,'deleteNode'));}
+    }
+  }
+  trav(root);const newRoot=bstDelete(root,val);
+  s.push(mkBST(newRoot,["bd19"],`Node(${val}) deleted ✓`,null,null,null,'deleteNode'));
+  return{steps:s,newRoot};
+}
+function buildBSTInorder(root){
+  const s=[],result=[];s.push(mkBST(root,["io0"],`inorderTraversal(root)`,null,null,null,'inorder'));
+  function trav(node){if(!node)return;
+    s.push(mkBST(root,["io1","io2"],`go LEFT of ${node.val}`,node.val,null,null,'inorder'));trav(node.left);
+    result.push(node.val);s.push(mkBST(root,["io3"],`Print ${node.val}`,null,node.val,null,'inorder'));
+    s.push(mkBST(root,["io4"],`go RIGHT of ${node.val}`,node.val,null,null,'inorder'));trav(node.right);
+  }
+  trav(root);s.push(mkBST(root,["io5","io6"],`Inorder: [${result.join(', ')}]`,null,null,null,'inorder'));return s;
+}
+
+// ═══════════════════════════════════════════
+// BST SVG RENDERER
+// ═══════════════════════════════════════════
+function renderBST(svgId,root,activeVal,foundVal,deletedVal){
+  const svg=document.getElementById(svgId);
+  const W=svg.parentElement.clientWidth||520,H=svg.parentElement.clientHeight||340;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.innerHTML='';
+  if(!root){const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',W/2);t.setAttribute('y',H/2);t.setAttribute('text-anchor','middle');t.style.cssText='fill:#334155;font-size:13px;font-family:JetBrains Mono,monospace';t.textContent='BST is empty — insert values to begin';svg.appendChild(t);return;}
+  const cloned=deepCopy(root);let idx=0;
+  function assignX(node,depth){if(!node)return;assignX(node.left,depth+1);node._x=idx++;node._y=depth;assignX(node.right,depth+1);}
+  assignX(cloned,0);
+  const n=bstSize(root),R=Math.min(22,Math.max(14,Math.floor(W/(n*2.4)))),pad=R*2.5,usW=W-pad*2,xStep=n>1?usW/(n-1):0;
+  function gD(node){if(!node)return 0;return 1+Math.max(gD(node.left),gD(node.right));}
+  const maxD=gD(cloned),yStep=Math.min(70,Math.max(46,(H-R*4)/(maxD||1)));
+  function pos(node){return{x:n===1?W/2:pad+node._x*xStep,y:R*2.2+node._y*yStep};}
+  function drawEdges(node){if(!node)return;['left','right'].forEach(side=>{if(node[side]){const p=pos(node),c=pos(node[side]);const line=document.createElementNS('http://www.w3.org/2000/svg','line');line.setAttribute('x1',p.x);line.setAttribute('y1',p.y);line.setAttribute('x2',c.x);line.setAttribute('y2',c.y);line.setAttribute('stroke','#1e3a5f');line.setAttribute('stroke-width','1.5');svg.appendChild(line);drawEdges(node[side]);}});}
+  drawEdges(cloned);
+  function drawNodes(node){if(!node)return;const{x,y}=pos(node);const isAct=node.val===activeVal,isFound=node.val===foundVal,isDel=node.val===deletedVal;let fill='#1e293b',stroke='#334155',tc='#94a3b8';if(isDel){fill='#2d0a0a';stroke='#ef4444';tc='#f87171';}else if(isFound){fill='#14291a';stroke='#22c55e';tc='#4ade80';}else if(isAct){fill='#1e3a5f';stroke='#3b82f6';tc='#60a5fa';}const g=document.createElementNS('http://www.w3.org/2000/svg','g');const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',x);c.setAttribute('cy',y);c.setAttribute('r',R);c.setAttribute('fill',fill);c.setAttribute('stroke',stroke);c.setAttribute('stroke-width','1.8');if(isDel)c.style.filter='drop-shadow(0 0 8px #ef444466)';else if(isFound)c.style.filter='drop-shadow(0 0 10px #22c55e88)';else if(isAct)c.style.filter='drop-shadow(0 0 8px #3b82f666)';const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',x);t.setAttribute('y',y+1);t.setAttribute('text-anchor','middle');t.setAttribute('dominant-baseline','middle');t.style.cssText=`fill:${tc};font-size:${node.val>99?9:11}px;font-weight:700;font-family:JetBrains Mono,monospace`;t.textContent=node.val;g.appendChild(c);g.appendChild(t);svg.appendChild(g);drawNodes(node.left);drawNodes(node.right);}
+  drawNodes(cloned);
+}
+
+// ═══════════════════════════════════════════
+// SORT STEP FACTORIES
+// ═══════════════════════════════════════════
+function mk(arr,hl,msg,extra={}){return{arr:[...arr],hl,msg,swap:null,active:null,fn:'',sorted:[],minIdx:null,keyIdx:null,shiftIdxs:[],pivotIdx:null,rangeL:null,rangeH:null,leftIdxs:[],rightIdxs:[],mergeIdxs:[],...extra};}
+function buildInsert(h,val){const s=[],arr=[...h];if(arr.length>=100){s.push(mk(arr,["i1","i2","i3"],"Heap full",{fn:"insert"}));return s;}s.push(mk(arr,["i5"],`Place ${val}`,{active:arr.length,fn:"insert"}));arr.push(val);let i=arr.length-1;s.push(mk(arr,["i6","i7"],`i=${i}`,{active:i,fn:"insert"}));while(i!==0){const p=Math.floor((i-1)/2);if(arr[p]>=arr[i])break;s.push(mk(arr,["i8","i9"],`arr[${p}]<arr[${i}]→swap`,{swap:[i,p],fn:"insert"}));[arr[i],arr[p]]=[arr[p],arr[i]];s.push(mk(arr,["i10"],`i→${p}`,{active:p,fn:"insert"}));i=p;}s.push(mk(arr,["i8"],"Done",{active:i,fn:"insert"}));return s;}
+function buildDelete(h){const s=[],arr=[...h];if(!arr.length){s.push(mk(arr,["d1","d2","d3"],"Heap empty",{fn:"deleteRoot"}));return s;}s.push(mk(arr,["d5"],"Replace root",{swap:[0,arr.length-1],fn:"deleteRoot"}));arr[0]=arr[arr.length-1];arr.pop();s.push(mk(arr,["d7"],"heapify(0)",{active:0,fn:"deleteRoot"}));s.push(...buildHeapify(arr,0,0));return s;}
+function buildHeapify(arr,i,depth){const s=[],pre=depth?"↳ ":"",a=[...arr],l=2*i+1,r=2*i+2;s.push(mk(a,["h1","h2","h3"],`${pre}heapify(${i})`,{active:i,fn:"heapify"}));let lg=i;if(l<a.length&&a[l]>a[lg])lg=l;if(r<a.length&&a[r]>a[lg])lg=r;if(lg!==i){s.push(mk(a,["h9"],`Swap`,{swap:[i,lg],fn:"heapify"}));[a[i],a[lg]]=[a[lg],a[i]];s.push(...buildHeapify(a,lg,depth+1));}return s;}
+function buildBubbleSort(init){const s=[],arr=[...init],sorted=[];s.push(mk(arr,["m0","m1"],`Array: [${arr}]`,{fn:"main",sorted:[...sorted]}));for(let i=0;i<arr.length;i++){for(let e=1;e<arr.length-i;e++){const sw=arr[e]<arr[e-1];s.push(mk(arr,["b2","b3"],`e=${e}: ${arr[e-1]} vs ${arr[e]} → ${sw?"swap":"ok"}`,{swap:sw?[e,e-1]:null,active:e,fn:"bubblesort",sorted:[...sorted]}));if(sw){[arr[e],arr[e-1]]=[arr[e-1],arr[e]];}}sorted.unshift(arr.length-1-i);}s.push(mk(arr,["m3","m4"],`Sorted: [${arr}]`,{fn:"main",sorted:[...sorted]}));return s;}
+function buildSelectionSort(init){const s=[],arr=[...init],sorted=[];s.push(mk(arr,["sm0","sm1"],`Array: [${arr}]`,{fn:"main",sorted:[...sorted]}));for(let i=0;i<arr.length;i++){let sm=i;s.push(mk(arr,["se1","se2"],`i=${i}, smallest=${i}`,{minIdx:sm,fn:"selection",sorted:[...sorted]}));for(let e=i+1;e<arr.length;e++){s.push(mk(arr,["se4"],`e=${e}: ${arr[e]}<${arr[sm]}?`,{active:e,minIdx:sm,fn:"selection",sorted:[...sorted]}));if(arr[e]<arr[sm]){sm=e;}}s.push(mk(arr,["se8"],`Swap [${sm}]↔[${i}]`,{swap:[sm,i],minIdx:sm,fn:"selection",sorted:[...sorted]}));[arr[sm],arr[i]]=[arr[i],arr[sm]];sorted.push(i);}s.push(mk(arr,["sm3","sm4"],`Sorted: [${arr}]`,{fn:"main",sorted:[...sorted]}));return s;}
+function rng(a,b){const r=[];for(let i=a;i<=b;i++)r.push(i);return r;}
+function buildInsertionSort(init){const s=[],arr=[...init];s.push(mk(arr,["im0","im1"],`Array: [${arr}]`,{fn:"main",sorted:rng(0,0)}));for(let i=1;i<arr.length;i++){const sf=rng(0,i-1),key=arr[i];s.push(mk(arr,["is2"],`key=arr[${i}]=${key}`,{keyIdx:i,fn:"insertion",sorted:sf}));let j=i-1;const sh=[];while(j>=0&&arr[j]>key){s.push(mk(arr,["is4","is5"],`shift`,{active:j,keyIdx:i,fn:"insertion",sorted:sf,shiftIdxs:[...sh]}));arr[j+1]=arr[j];sh.push(j+1);j--;}arr[j+1]=key;s.push(mk(arr,["is8"],`arr[${j+1}]=key=${key}`,{active:j+1,fn:"insertion",sorted:rng(0,i),shiftIdxs:[]}));}return s;}
+function buildQuickSort(init){const s=[],arr=[...init];s.push(mk(arr,["qm1"],`Array: [${arr}]`,{fn:"main"}));doQS(s,arr,[],0,arr.length-1,0);s.push(mk(arr,["qm3","qm4"],`Sorted: [${arr}]`,{fn:"main",sorted:rng(0,arr.length-1)}));return s;}
+function doQS(s,arr,sorted,lo,hi,d){const pre='  '.repeat(d);s.push(mk(arr,["qq0","qq1"],`${pre}quickSort(${lo},${hi})`,{fn:"quickSort",rangeL:lo,rangeH:hi,sorted:[...sorted]}));if(lo>=hi){if(lo===hi)sorted.push(lo);return;}const pi=doPartition(s,arr,sorted,lo,hi,pre);sorted.push(pi);doQS(s,arr,sorted,lo,pi-1,d+1);doQS(s,arr,sorted,pi+1,hi,d+1);}
+function doPartition(s,arr,sorted,lo,hi,pre){const pivot=arr[hi];let i=lo-1;for(let j=lo;j<hi;j++){s.push(mk(arr,["qp4"],`${pre}j=${j}: ${arr[j]}<${pivot}?`,{fn:"partition",active:j,rangeL:lo,rangeH:hi,sorted:[...sorted],pivotIdx:hi}));if(arr[j]<pivot){i++;s.push(mk(arr,["qp6"],`swap [${i}]↔[${j}]`,{fn:"partition",swap:[i,j],rangeL:lo,rangeH:hi,sorted:[...sorted],pivotIdx:hi}));[arr[i],arr[j]]=[arr[j],arr[i]];}}[arr[i+1],arr[hi]]=[arr[hi],arr[i+1]];s.push(mk(arr,["qp9","qp10"],`place pivot→[${i+1}]`,{fn:"partition",active:i+1,rangeL:lo,rangeH:hi,sorted:[...sorted],pivotIdx:i+1}));return i+1;}
+function buildMergeSort(init){const s=[],arr=[...init];s.push(mk(arr,["mm1"],`Array: [${arr}]`,{fn:"main"}));doMS(s,arr,[],0,arr.length-1,0);s.push(mk(arr,["mm3","mm4"],`Sorted: [${arr}]`,{fn:"main",sorted:rng(0,arr.length-1)}));return s;}
+function doMS(s,arr,sorted,l,r,d){const pre='  '.repeat(d);if(l>=r){sorted.push(l);return;}const m=Math.floor((l+r)/2);s.push(mk(arr,["ms2"],`${pre}mid=${m}`,{fn:"mergeSort",leftIdxs:rng(l,m),rightIdxs:rng(m+1,r),sorted:[...sorted]}));doMS(s,arr,sorted,l,m,d+1);doMS(s,arr,sorted,m+1,r,d+1);s.push(mk(arr,["ms5"],`${pre}merge(${l},${m},${r})`,{fn:"mergeSort",leftIdxs:rng(l,m),rightIdxs:rng(m+1,r),sorted:[...sorted]}));doMerge(s,arr,sorted,l,m,r,pre);}
+function doMerge(s,arr,sorted,l,m,r,pre){const L=arr.slice(l,m+1),R=arr.slice(m+1,r+1);let i=0,j=0,k=l;while(i<L.length&&j<R.length){s.push(mk(arr,["mg9","mg10"],`${pre}L[${i}]=${L[i]} vs R[${j}]=${R[j]}`,{fn:"merge",active:k,leftIdxs:rng(l,m),rightIdxs:rng(m+1,r),mergeIdxs:rng(l,k-1),sorted:[...sorted]}));if(L[i]<=R[j]){arr[k]=L[i];i++;}else{arr[k]=R[j];j++;}k++;}while(i<L.length){arr[k]=L[i];i++;k++;}while(j<R.length){arr[k]=R[j];j++;k++;}rng(l,r).forEach(x=>{if(!sorted.includes(x))sorted.push(x);});s.push(mk(arr,["mg19"],`${pre}merged [${l}..${r}]`,{fn:"merge",mergeIdxs:rng(l,r),sorted:[...sorted]}));}
+
+// ═══════════════════════════════════════════
+// LL STEP BUILDERS
+// ═══════════════════════════════════════════
+function mkLL(list,hl,msg,active=null,target=null,deleted=null,fn='insertNode'){return{list:[...list],hl,msg,active,target,deleted,fn};}
+function mkDLL(list,hl,msg,active=null,target=null,deleted=null,fn='insertNode'){return{list:[...list],hl,msg,active,target,deleted,fn,isDLL:true};}
+function buildLLInsert(list,val){const s=[],arr=[...list];s.push(mkLL(arr,["in0","in1","in2"],`Create node(${val})`,null,null,null,'insertNode'));s.push(mkLL(arr,["in3"],`newNode->next=head`,null,null,null,'insertNode'));arr.unshift(val);s.push(mkLL(arr,["in4"],`head=newNode`,0,null,null,'insertNode'));s.push(mkLL(arr,["in5"],'Inserted.',0,null,null,'insertNode'));return s;}
+function buildLLDelete(list,val){const s=[],arr=[...list];if(!arr.length){s.push(mkLL(arr,["dn1","dn2","dn3"],'List empty.',null,null,null,'deleteNode'));return s;}if(arr[0]===val){arr.shift();s.push(mkLL(arr,["dn7","dn8","dn9","dn10"],'Deleted head.',null,null,0,'deleteNode'));return s;}let i=0,found=false;while(i<arr.length-1){s.push(mkLL(arr,["dn13","dn14","dn15"],`temp(${arr[i]})≠${val}→next`,i,val,null,'deleteNode'));i++;if(arr[i]===val){found=true;break;}}if(!found){s.push(mkLL(arr,["dn17","dn18","dn19"],`${val} not found.`,null,null,null,'deleteNode'));return s;}s.push(mkLL(arr,["dn21"],`bypass ${val}`,i-1,val,null,'deleteNode'));arr.splice(i,1);s.push(mkLL(arr,["dn22","dn23"],'Deleted.',null,null,i,'deleteNode'));return s;}
+function buildLLDisplay(list){const s=[],arr=[...list];if(!arr.length){s.push(mkLL(arr,["dl1","dl2","dl3"],'List empty.',null,null,null,'displayList'));return s;}for(let i=0;i<arr.length;i++){s.push(mkLL(arr,["dl7","dl8"],`Print ${arr[i]}`,i,null,null,'displayList'));if(i<arr.length-1)s.push(mkLL(arr,["dl9"],`temp→next`,i+1,null,null,'displayList'));}s.push(mkLL(arr,["dl10","dl11"],'Print NULL',null,null,null,'displayList'));return s;}
+function buildDLLInsert(list,val){const s=[],arr=[...list];if(arr.length)s.push(mkDLL(arr,["din5"],`head->prev=newNode`,0,null,null,'insertNode'));arr.unshift(val);s.push(mkDLL(arr,["din7"],`head=newNode(${val})`,0,null,null,'insertNode'));s.push(mkDLL(arr,["din8"],'Inserted.',0,null,null,'insertNode'));return s;}
+function buildDLLDelete(list,val){const s=[],arr=[...list];if(!arr.length){s.push(mkDLL(arr,["ddn1","ddn2","ddn3"],'List empty.',null,null,null,'deleteNode'));return s;}let i=0,found=false;while(i<arr.length){s.push(mkDLL(arr,["ddn6","ddn7"],`temp(${arr[i]})==${val}?`,i,val,null,'deleteNode'));if(arr[i]===val){found=true;break;}i++;}if(!found){s.push(mkDLL(arr,["ddn8","ddn9","ddn10"],`${val} not found.`,null,null,null,'deleteNode'));return s;}if(i===0){arr.shift();s.push(mkDLL(arr,["ddn12","ddn13","ddn14"],'Deleted head.',null,null,0,'deleteNode'));}else{arr.splice(i,1);s.push(mkDLL(arr,["ddn15","ddn17","ddn18"],'Deleted.',null,null,i,'deleteNode'));}return s;}
+function buildDLLDisplay(list){const s=[],arr=[...list];if(!arr.length){s.push(mkDLL(arr,["ddl1","ddl2","ddl3"],'List empty.',null,null,null,'displayList'));return s;}for(let i=0;i<arr.length;i++){s.push(mkDLL(arr,["ddl7","ddl8"],`Print ${arr[i]} <->`,i,null,null,'displayList'));if(i<arr.length-1)s.push(mkDLL(arr,["ddl9"],`temp→next`,i+1,null,null,'displayList'));}s.push(mkDLL(arr,["ddl10","ddl11"],'Print NULL',null,null,null,'displayList'));return s;}
+
+// ═══════════════════════════════════════════
+// SORT RENDERERS
+// ═══════════════════════════════════════════
+function getHeapPos(n,W,H){const pos=[];for(let i=0;i<n;i++){const d=Math.floor(Math.log2(i+1)),lS=Math.pow(2,d)-1,lC=Math.pow(2,d);const vGap=Math.min(68,(H-28)/(Math.floor(Math.log2(n||1))+1));pos.push({x:(W/lC)*(i-lS)+(W/lC)/2,y:26+d*vGap});}return pos;}
+function renderHeapSVG(arr,swapIdx,activeIdx){const svg=document.getElementById('tree-svg');const W=svg.clientWidth||520,H=svg.clientHeight||280;svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.innerHTML='';const pos=getHeapPos(arr.length,W,H);arr.forEach((_,i)=>{[2*i+1,2*i+2].forEach(c=>{if(c<arr.length){const isSE=swapIdx&&swapIdx.includes(i)&&swapIdx.includes(c);const line=document.createElementNS('http://www.w3.org/2000/svg','line');line.setAttribute('x1',pos[i].x);line.setAttribute('y1',pos[i].y);line.setAttribute('x2',pos[c].x);line.setAttribute('y2',pos[c].y);line.setAttribute('stroke',isSE?'#f59e0b':'#1e3a5f');line.setAttribute('stroke-width',isSE?'2.5':'1.5');if(isSE)line.setAttribute('stroke-dasharray','5,3');svg.appendChild(line);}});});if(!arr.length){const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',W/2);t.setAttribute('y',H/2);t.setAttribute('text-anchor','middle');t.style.cssText='fill:#334155;font-size:13px;font-family:JetBrains Mono,monospace';t.textContent='Heap is empty';svg.appendChild(t);return;}arr.forEach((v,i)=>{const{x,y}=pos[i],isSwap=swapIdx&&swapIdx.includes(i),isActive=activeIdx===i,isRoot=i===0;let fill='#1e293b',stroke='#334155',tc='#94a3b8';if(isSwap){fill='#78350f';stroke='#f59e0b';tc='#fbbf24';}else if(isActive){fill='#1e3a5f';stroke='#3b82f6';tc='#60a5fa';}else if(isRoot){fill='#1a2e1a';stroke='#22c55e';tc='#4ade80';}const g=document.createElementNS('http://www.w3.org/2000/svg','g');const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');circle.setAttribute('cx',x);circle.setAttribute('cy',y);circle.setAttribute('r',19);circle.setAttribute('fill',fill);circle.setAttribute('stroke',stroke);circle.setAttribute('stroke-width','1.8');if(isSwap)circle.style.filter='drop-shadow(0 0 8px #f59e0b66)';else if(isActive)circle.style.filter='drop-shadow(0 0 8px #3b82f666)';const text=document.createElementNS('http://www.w3.org/2000/svg','text');text.setAttribute('x',x);text.setAttribute('y',y+1);text.setAttribute('text-anchor','middle');text.setAttribute('dominant-baseline','middle');text.style.cssText=`fill:${tc};font-size:${v>99?9:11}px;font-weight:700;font-family:JetBrains Mono,monospace`;text.textContent=v;g.appendChild(circle);g.appendChild(text);svg.appendChild(g);});}
+const BAR_COLORS=[['#1e3a5f','#3b82f6'],['#1a2e3a','#06b6d4'],['#2a1e3f','#818cf8'],['#1e2a1e','#4ade80'],['#3a2a1e','#fb923c'],['#3a1e2e','#f472b6'],['#1e3a2a','#34d399'],['#2a1e1e','#fbbf24'],['#1e2a3a','#38bdf8'],['#2a2a1e','#a3e635']];
+function renderBars(wrapId,arr,step){
+  const{swap:swapIdx,active:activeIdx,sorted=[],minIdx=null,keyIdx=null,shiftIdxs=[],pivotIdx=null,rangeL=null,rangeH=null,leftIdxs=[],rightIdxs=[],mergeIdxs=[]}=step;
+  const wrap=document.getElementById(wrapId);wrap.innerHTML='';
+  const maxV=Math.max(...arr)||1,maxH=wrap.clientHeight||200;
+  arr.forEach((v,i)=>{
+    const isSwap=swapIdx&&swapIdx.includes(i),isActive=activeIdx===i,isSorted=sorted.includes(i),isMin=minIdx===i,isKey=keyIdx===i,isShift=shiftIdxs.includes(i),isPivot=pivotIdx===i;
+    const inRange=rangeL!==null&&rangeH!==null&&i>=rangeL&&i<=rangeH&&!isSorted&&!isPivot;
+    const isLeft=leftIdxs.includes(i)&&!isSorted&&!mergeIdxs.includes(i),isRight=rightIdxs.includes(i)&&!isSorted&&!mergeIdxs.includes(i),isMerge=mergeIdxs.includes(i)&&!isSorted;
+    const col=BAR_COLORS[i%BAR_COLORS.length];let bg=col[0],border=col[1],cls='';
+    if(isSwap){bg='#78350f';border='#f59e0b';cls='swap-bar';}else if(isPivot){bg='#3b0a1a';border='#f43f5e';cls='pivot-bar';}else if(isMerge){bg='#1a0d2e';border='#8b5cf6';cls='merge-bar';}else if(isLeft){bg='#0a1e2a';border='#06b6d4';cls='left-bar';}else if(isRight){bg='#1e1208';border='#f97316';cls='right-bar';}else if(isKey){bg='#2a1040';border='#a78bfa';cls='key-bar';}else if(isShift){bg='#1a1a0a';border='#ca8a04';}else if(isMin){bg='#3b0a1a';border='#f43f5e';}else if(isSorted){bg='#14291a';border='#22c55e';cls='sorted-bar';}else if(inRange){bg='#0a1e2a';border='#06b6d4';}else if(isActive){bg='#1e3a5f';border='#3b82f6';cls='active-bar';}
+    const h=Math.max(20,Math.round((v/maxV)*(maxH-54)));
+    const valColor=isSwap?'#fbbf24':isPivot?'#fb7185':isMerge?'#c4b5fd':isLeft?'#67e8f9':isRight?'#fdba74':isKey?'#c4b5fd':isShift?'#fde047':isMin?'#fb7185':isSorted?'#4ade80':isActive?'#60a5fa':col[1];
+    const c=document.createElement('div');c.className='bar-col';
+    c.innerHTML=`<span class="bar-val" style="color:${valColor}">${v}</span><div class="bar${cls?' '+cls:''}" style="height:${h}px;background:${bg};border:1.5px solid ${border}"></div><span class="bar-idx">[${i}]</span>`;
+    wrap.appendChild(c);
+  });
+}
+function renderArray(arr,step){
+  const{swap:swapIdx,active:activeIdx,sorted=[],minIdx=null,keyIdx=null,shiftIdxs=[],pivotIdx=null,rangeL=null,rangeH=null,leftIdxs=[],rightIdxs=[],mergeIdxs=[]}=step;
+  const bar=document.getElementById('array-bar');bar.innerHTML='';
+  arr.forEach((v,i)=>{
+    const isSwap=swapIdx&&swapIdx.includes(i),isSorted=sorted.includes(i),isMin=minIdx===i,isKey=keyIdx===i,isShift=shiftIdxs.includes(i),isPivot=pivotIdx===i;
+    const inRange=rangeL!==null&&rangeH!==null&&i>=rangeL&&i<=rangeH&&!isSorted&&!isPivot;
+    const isLeft=leftIdxs.includes(i)&&!isSorted&&!mergeIdxs.includes(i),isRight=rightIdxs.includes(i)&&!isSorted&&!mergeIdxs.includes(i),isMerge=mergeIdxs.includes(i)&&!isSorted;
+    let cls='arr-cell';
+    if(isSwap)cls+=' swap';else if(isPivot)cls+=' pivot';else if(isMerge)cls+=' mergec';else if(isLeft)cls+=' leftc';else if(isRight)cls+=' rightc';else if(isKey)cls+=' keyc';else if(isShift)cls+=' shift';else if(isMin)cls+=' minc';else if(isSorted)cls+=' sorted';else if(inRange)cls+=' rangec';else if(activeIdx===i)cls+=' active';
+    const cell=document.createElement('div');cell.className=cls;
+    cell.innerHTML=`<span>${v}</span><span class="cidx">[${i}]</span>`;
+    bar.appendChild(cell);
+  });
+}
+function renderLinkedList(svgId,list,activeIdx,targetVal,deletedIdx,isBidirectional){
+  const svg=document.getElementById(svgId);const W=svg.parentElement.clientWidth||500,H=svg.parentElement.clientHeight||220;svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.innerHTML='';const nodeW=72,nodeH=38,arrowLen=isBidirectional?46:38,gap=nodeW+arrowLen;const totalW=list.length*(nodeW+arrowLen);const startX=Math.max(16,(W-totalW)/2),y=H/2-nodeH/2;
+  if(!list.length){const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',W/2);t.setAttribute('y',H/2);t.setAttribute('text-anchor','middle');t.style.cssText='fill:#334155;font-size:13px;font-family:JetBrains Mono,monospace';t.textContent='List is empty';svg.appendChild(t);return;}
+  list.forEach((val,i)=>{const x=startX+i*gap,isActive=activeIdx===i,isTarget=targetVal!==null&&val===targetVal,isDeleted=deletedIdx===i;let fill='#1e293b',stroke='#334155',tc='#94a3b8',lc='#1e3a5f';if(isDeleted){fill='#2d0a0a';stroke='#ef4444';tc='#f87171';lc='#ef4444';}else if(isTarget){fill='#2a1040';stroke='#a78bfa';tc='#c4b5fd';lc='#a78bfa';}else if(isActive){fill='#1e3a5f';stroke='#3b82f6';tc='#60a5fa';lc='#3b82f6';}else if(i===0){fill='#1a2e1a';stroke='#22c55e';tc='#4ade80';lc='#22c55e';}
+    const g=document.createElementNS('http://www.w3.org/2000/svg','g');const dW=nodeW*0.6;const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');rect.setAttribute('x',x);rect.setAttribute('y',y);rect.setAttribute('width',nodeW);rect.setAttribute('height',nodeH);rect.setAttribute('rx',5);rect.setAttribute('fill',fill);rect.setAttribute('stroke',stroke);rect.setAttribute('stroke-width','1.5');if(isDeleted)rect.style.filter='drop-shadow(0 0 8px #ef444466)';else if(isActive)rect.style.filter='drop-shadow(0 0 8px #3b82f666)';
+    const dv=document.createElementNS('http://www.w3.org/2000/svg','line');dv.setAttribute('x1',x+dW);dv.setAttribute('y1',y+4);dv.setAttribute('x2',x+dW);dv.setAttribute('y2',y+nodeH-4);dv.setAttribute('stroke',stroke);dv.setAttribute('stroke-width','1');
+    const dt=document.createElementNS('http://www.w3.org/2000/svg','text');dt.setAttribute('x',x+dW/2);dt.setAttribute('y',y+nodeH/2+1);dt.setAttribute('text-anchor','middle');dt.setAttribute('dominant-baseline','middle');dt.style.cssText=`fill:${tc};font-size:12px;font-weight:700;font-family:JetBrains Mono,monospace`;dt.textContent=val;
+    const nt=document.createElementNS('http://www.w3.org/2000/svg','text');nt.setAttribute('x',x+dW+(nodeW-dW)/2);nt.setAttribute('y',y+nodeH/2+1);nt.setAttribute('text-anchor','middle');nt.setAttribute('dominant-baseline','middle');nt.style.cssText=`fill:${lc};font-size:8px;font-family:JetBrains Mono,monospace`;nt.textContent='next';
+    const il=document.createElementNS('http://www.w3.org/2000/svg','text');il.setAttribute('x',x+nodeW/2);il.setAttribute('y',y+nodeH+14);il.setAttribute('text-anchor','middle');il.style.cssText='fill:#334155;font-size:9px;font-family:JetBrains Mono,monospace';il.textContent=i===0?'head':i===list.length-1?'tail':'';
+    g.appendChild(rect);g.appendChild(dv);g.appendChild(dt);g.appendChild(nt);g.appendChild(il);svg.appendChild(g);
+    if(i<list.length-1){const ax=x+nodeW,ay=isBidirectional?y+nodeH/2-5:y+nodeH/2,ac=isDeleted?'#ef444466':lc;const ln=document.createElementNS('http://www.w3.org/2000/svg','line');ln.setAttribute('x1',ax);ln.setAttribute('y1',ay);ln.setAttribute('x2',ax+arrowLen-8);ln.setAttribute('y2',ay);ln.setAttribute('stroke',ac);ln.setAttribute('stroke-width','1.5');if(isDeleted)ln.setAttribute('stroke-dasharray','4,3');const ah=document.createElementNS('http://www.w3.org/2000/svg','polygon');const tip=ax+arrowLen-2;ah.setAttribute('points',`${tip},${ay} ${tip-7},${ay-4} ${tip-7},${ay+4}`);ah.setAttribute('fill',ac);svg.appendChild(ln);svg.appendChild(ah);if(isBidirectional){const bx=startX+i*gap+nodeW,by=y+nodeH/2+5,nx=startX+(i+1)*gap,ni=i+1;const nextAc=deletedIdx===ni?'#ef444466':activeIdx===ni?'#3b82f6':ni===0?'#22c55e':'#1e3a5f';const bln=document.createElementNS('http://www.w3.org/2000/svg','line');bln.setAttribute('x1',nx);bln.setAttribute('y1',by);bln.setAttribute('x2',bx+8);bln.setAttribute('y2',by);bln.setAttribute('stroke',nextAc);bln.setAttribute('stroke-width','1.5');const bah=document.createElementNS('http://www.w3.org/2000/svg','polygon');bah.setAttribute('points',`${bx+2},${by} ${bx+9},${by-4} ${bx+9},${by+4}`);bah.setAttribute('fill',nextAc);svg.appendChild(bln);svg.appendChild(bah);if(i+1<list.length){const pl=document.createElementNS('http://www.w3.org/2000/svg','text');pl.setAttribute('x',nx-2);pl.setAttribute('y',y+nodeH/2+5+10);pl.setAttribute('text-anchor','start');pl.style.cssText=`fill:${nextAc};font-size:7px;font-family:JetBrains Mono,monospace`;pl.textContent='prev';svg.appendChild(pl);}}}
+    if(i===list.length-1){const nx=x+nodeW+6,ny=y+nodeH/2;const nL=document.createElementNS('http://www.w3.org/2000/svg','line');nL.setAttribute('x1',x+nodeW);nL.setAttribute('y1',ny);nL.setAttribute('x2',nx+20);nL.setAttribute('y2',ny);nL.setAttribute('stroke','#334155');nL.setAttribute('stroke-width','1.5');const nT=document.createElementNS('http://www.w3.org/2000/svg','text');nT.setAttribute('x',nx+22);nT.setAttribute('y',ny+1);nT.setAttribute('dominant-baseline','middle');nT.style.cssText='fill:#475569;font-size:11px;font-family:JetBrains Mono,monospace';nT.textContent='nullptr';svg.appendChild(nL);svg.appendChild(nT);}
+  });
+  const hx=startX+nodeW*0.3,hy=y-26;const hA=document.createElementNS('http://www.w3.org/2000/svg','line');hA.setAttribute('x1',hx);hA.setAttribute('y1',hy);hA.setAttribute('x2',hx);hA.setAttribute('y2',y-4);hA.setAttribute('stroke','#22c55e');hA.setAttribute('stroke-width','1.5');const hT=document.createElementNS('http://www.w3.org/2000/svg','polygon');hT.setAttribute('points',`${hx},${y} ${hx-4},${y-8} ${hx+4},${y-8}`);hT.setAttribute('fill','#22c55e');const hL=document.createElementNS('http://www.w3.org/2000/svg','text');hL.setAttribute('x',hx);hL.setAttribute('y',hy-5);hL.setAttribute('text-anchor','middle');hL.style.cssText='fill:#4ade80;font-size:10px;font-family:JetBrains Mono,monospace;font-weight:700';hL.textContent='head';svg.appendChild(hA);svg.appendChild(hT);svg.appendChild(hL);
+}
+
+// ═══════════════════════════════════════════
+// RENDER STEP
+// ═══════════════════════════════════════════
+function renderStep(step){
+  if(!step)return;
+  if(step.isBST){renderBST('bst-svg',step.root,step.active,step.found,step.deleted);document.getElementById('msg-box').textContent=step.msg;applyHighlight(step.hl||[]);document.querySelectorAll('.fn-tab').forEach(t=>t.classList.toggle('active',t.dataset.fn===step.fn));return;}
+  if(step.isSearch){
+    const wrapId=currentMode==='linearsearch'?'lsearch-wrap':'bsearch-wrap';
+    renderSearch(wrapId,step.arr,step.states);renderSearchArray(step.arr,step.states);
+    document.getElementById('msg-box').textContent=step.msg;applyHighlight(step.hl||[]);document.querySelectorAll('.fn-tab').forEach(t=>t.classList.toggle('active',t.dataset.fn===step.fn));return;
+  }
+  if(currentMode==='heap'){renderHeapSVG(step.arr,step.swap,step.active);renderArray(step.arr,step);}
+  else if(['bubble','selection','insertion','quicksort','mergesort'].includes(currentMode)){const wrapId={bubble:'bubble-wrap',selection:'sel-wrap',insertion:'ins-wrap',quicksort:'quick-wrap',mergesort:'merge-wrap'}[currentMode];renderBars(wrapId,step.arr,step);renderArray(step.arr,step);}
+  else if(currentMode==='linked'){renderLinkedList('ll-svg',step.list,step.active,step.target,step.deleted,false);}
+  else if(currentMode==='doubly'){renderLinkedList('dll-svg',step.list,step.active,step.target,step.deleted,true);}
+  document.getElementById('msg-box').textContent=step.msg;applyHighlight(step.hl||[]);document.querySelectorAll('.fn-tab').forEach(t=>t.classList.toggle('active',t.dataset.fn===step.fn));
+}
+function renderInitial(){
+  const empty=mk([],[],'',{});
+  if(currentMode==='heap'){renderHeapSVG(heap,null,null);renderArray(heap,empty);}
+  else if(currentMode==='bubble'){renderBars('bubble-wrap',bubbleArr,empty);renderArray(bubbleArr,empty);}
+  else if(currentMode==='selection'){renderBars('sel-wrap',selArr,empty);renderArray(selArr,empty);}
+  else if(currentMode==='insertion'){renderBars('ins-wrap',insArr,empty);renderArray(insArr,empty);}
+  else if(currentMode==='quicksort'){renderBars('quick-wrap',qsArr,empty);renderArray(qsArr,empty);}
+  else if(currentMode==='mergesort'){renderBars('merge-wrap',msArr,empty);renderArray(msArr,empty);}
+  else if(currentMode==='bst'){renderBST('bst-svg',bstRoot,null,null,null);}
+  else if(currentMode==='linearsearch'){renderSearch('lsearch-wrap',lsArr,null);renderSearchArray(lsArr,null);}
+  else if(currentMode==='binarysearch'){renderSearch('bsearch-wrap',bsArr,null);renderSearchArray(bsArr,null);}
+  else if(currentMode==='linked'){renderLinkedList('ll-svg',llList,null,null,null,false);}
+  else{renderLinkedList('dll-svg',dllList,null,null,null,true);}
+  applyHighlight([]);
+}
+
+// ═══════════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════════
+function updateArrLine(lineId,newArr){const el=document.querySelector(`[data-id="${lineId}"]`);if(!el)return;const ct=el.querySelector('.code-text');if(!ct)return;const sec=getSections();let tmpl='';Object.values(sec).forEach(s=>s.lines.forEach(l=>{if(l.id===lineId)tmpl=l.t;}));if(!tmpl)return;const updated=tmpl.replace(/[\[\{][^\]\}]+[\]\}]/,currentLang==='python'?`[${newArr.join(',')}]`:`{${newArr.join(',')}}`);ct.innerHTML=highlight(updated,currentLang);}
+function newArr(n){return[...Array(n)].map(()=>Math.floor(Math.random()*98)+1);}
+function newSortedArr(n){return newArr(n).sort((a,b)=>a-b);}
+
+function buildHeapControls(){document.getElementById('op-row').innerHTML=`<input id="val-input" type="number" placeholder="value…"/><button class="op-btn green" id="btn-ins">INSERT</button><button class="op-btn red" id="btn-del">DEL ROOT</button><button class="op-btn purple" id="btn-hfy">HEAPIFY</button>`;document.getElementById('btn-ins').onclick=()=>{const v=parseInt(document.getElementById('val-input').value);if(isNaN(v))return;runOp(buildInsert(heap,v),`INSERT ${v}`,'insert');document.getElementById('val-input').value='';};document.getElementById('val-input').onkeydown=e=>{if(e.key==='Enter')document.getElementById('btn-ins').click();};document.getElementById('btn-del').onclick=()=>{if(heap.length)runOp(buildDelete(heap),'DEL ROOT','deleteRoot');};document.getElementById('btn-hfy').onclick=()=>runOp(buildHeapify([...heap],0,0),'HEAPIFY','heapify');}
+function makeSortCtrl(label,cls,runFn,newFn){document.getElementById('op-row').innerHTML=`<button class="op-btn ${cls}" id="btn-sort" style="flex:1">${label}</button><button class="op-btn purple" id="btn-new">NEW ARRAY</button>`;document.getElementById('btn-sort').onclick=runFn;document.getElementById('btn-new').onclick=newFn;}
+function buildBubbleControls(){makeSortCtrl('▶ RUN BUBBLE SORT','orange',()=>runOp(buildBubbleSort(bubbleArr),'BUBBLE SORT','bubblesort'),()=>{pause();steps=[];stepIdx=-1;updateCounter();updateNavBtns();bubbleArr=newArr(N);renderBars('bubble-wrap',bubbleArr,mk([],[],'',{}));renderArray(bubbleArr,mk([],[],'',{}));document.getElementById('msg-box').textContent='New array — press RUN';applyHighlight([]);updateArrLine('m1',bubbleArr);});}
+function buildSelectionControls(){makeSortCtrl('▶ RUN SELECTION SORT','rose',()=>runOp(buildSelectionSort(selArr),'SELECTION SORT','selection'),()=>{pause();steps=[];stepIdx=-1;updateCounter();updateNavBtns();selArr=newArr(N);renderBars('sel-wrap',selArr,mk([],[],'',{}));renderArray(selArr,mk([],[],'',{}));document.getElementById('msg-box').textContent='New array — press RUN';applyHighlight([]);updateArrLine('sm1',selArr);});}
+function buildInsertionControls(){makeSortCtrl('▶ RUN INSERTION SORT','violet',()=>runOp(buildInsertionSort(insArr),'INSERTION SORT','insertion'),()=>{pause();steps=[];stepIdx=-1;updateCounter();updateNavBtns();insArr=newArr(N);renderBars('ins-wrap',insArr,mk([],[],'',{}));renderArray(insArr,mk([],[],'',{}));document.getElementById('msg-box').textContent='New array — press RUN';applyHighlight([]);updateArrLine('im1',insArr);});}
+function buildQuickControls(){makeSortCtrl('▶ RUN QUICK SORT','teal',()=>runOp(buildQuickSort(qsArr),'QUICK SORT','quickSort'),()=>{pause();steps=[];stepIdx=-1;updateCounter();updateNavBtns();qsArr=newArr(N);renderBars('quick-wrap',qsArr,mk([],[],'',{}));renderArray(qsArr,mk([],[],'',{}));document.getElementById('msg-box').textContent='New array — press RUN';applyHighlight([]);updateArrLine('qm1',qsArr);});}
+function buildMergeControls(){makeSortCtrl('▶ RUN MERGE SORT','indigo',()=>runOp(buildMergeSort(msArr),'MERGE SORT','mergeSort'),()=>{pause();steps=[];stepIdx=-1;updateCounter();updateNavBtns();msArr=newArr(N);renderBars('merge-wrap',msArr,mk([],[],'',{}));renderArray(msArr,mk([],[],'',{}));document.getElementById('msg-box').textContent='New array — press RUN';applyHighlight([]);updateArrLine('mm1',msArr);});}
+
+function buildBSTControls(){
+  document.getElementById('op-row').innerHTML=`<input id="bst-input" type="number" placeholder="value…" style="flex:1;padding:5px 9px;background:#111827;border:1px solid #1e2535;border-radius:6px;color:#e2e8f0;font-size:12px;outline:none"/><button class="op-btn green" id="btn-bst-ins">INSERT</button><button class="op-btn cyan" id="btn-bst-srch">SEARCH</button><button class="op-btn red" id="btn-bst-del">DELETE</button><button class="op-btn amber" id="btn-bst-io">INORDER</button>`;
+  const gv=()=>parseInt(document.getElementById('bst-input').value);
+  document.getElementById('btn-bst-ins').onclick=()=>{const v=gv();if(isNaN(v))return;const{steps:s,newRoot}=buildBSTInsert(bstRoot,v);runOp(s,`INSERT ${v}`,'insertNode',()=>{bstRoot=newRoot;});document.getElementById('bst-input').value='';};
+  document.getElementById('btn-bst-srch').onclick=()=>{const v=gv();if(isNaN(v))return;runOp(buildBSTSearch(bstRoot,v),`SEARCH ${v}`,'searchNode');document.getElementById('bst-input').value='';};
+  document.getElementById('btn-bst-del').onclick=()=>{const v=gv();if(isNaN(v))return;const{steps:s,newRoot}=buildBSTDelete(bstRoot,v);runOp(s,`DELETE ${v}`,'deleteNode',()=>{bstRoot=newRoot;});document.getElementById('bst-input').value='';};
+  document.getElementById('btn-bst-io').onclick=()=>runOp(buildBSTInorder(bstRoot),'INORDER','inorder');
+  document.getElementById('bst-input').onkeydown=e=>{if(e.key==='Enter')document.getElementById('btn-bst-ins').click();};
+}
+
+function buildLinearSearchControls(){
+  document.getElementById('op-row').innerHTML=`<input id="srch-input" type="number" placeholder="target…" style="flex:1;padding:5px 9px;background:#111827;border:1px solid #1e2535;border-radius:6px;color:#e2e8f0;font-size:12px;outline:none"/><button class="op-btn sky" id="btn-search">▶ SEARCH</button><button class="op-btn purple" id="btn-new-arr">NEW ARRAY</button>`;
+  document.getElementById('btn-search').onclick=()=>{
+    const v=parseInt(document.getElementById('srch-input').value);
+    if(isNaN(v)){document.getElementById('msg-box').textContent='Enter a target value first';return;}
+    runOp(buildLinearSearch(lsArr,v),`SEARCH ${v}`,'linearSearch');
+  };
+  document.getElementById('btn-new-arr').onclick=()=>{
+    pause();steps=[];stepIdx=-1;updateCounter();updateNavBtns();
+    lsArr=newArr(N);
+    renderSearch('lsearch-wrap',lsArr,null);renderSearchArray(lsArr,null);
+    document.getElementById('msg-box').textContent='New array — enter a target and press SEARCH';
+    applyHighlight([]);updateArrLine('lm1',lsArr);
+  };
+  document.getElementById('srch-input').onkeydown=e=>{if(e.key==='Enter')document.getElementById('btn-search').click();};
+}
+
+function buildBinarySearchControls(){
+  document.getElementById('op-row').innerHTML=`<input id="bsrch-input" type="number" placeholder="target…" style="flex:1;padding:5px 9px;background:#111827;border:1px solid #1e2535;border-radius:6px;color:#e2e8f0;font-size:12px;outline:none"/><button class="op-btn lime" id="btn-bsearch">▶ SEARCH</button><button class="op-btn purple" id="btn-new-sarr">NEW SORTED ARRAY</button>`;
+  document.getElementById('btn-bsearch').onclick=()=>{
+    const v=parseInt(document.getElementById('bsrch-input').value);
+    if(isNaN(v)){document.getElementById('msg-box').textContent='Enter a target value first';return;}
+    runOp(buildBinarySearch(bsArr,v),`SEARCH ${v}`,'binarySearch');
+  };
+  document.getElementById('btn-new-sarr').onclick=()=>{
+    pause();steps=[];stepIdx=-1;updateCounter();updateNavBtns();
+    bsArr=newSortedArr(N);
+    renderSearch('bsearch-wrap',bsArr,null);renderSearchArray(bsArr,null);
+    document.getElementById('msg-box').textContent='New sorted array — enter a target and press SEARCH';
+    applyHighlight([]);updateArrLine('bnm1',bsArr);
+  };
+  document.getElementById('bsrch-input').onkeydown=e=>{if(e.key==='Enter')document.getElementById('btn-bsearch').click();};
+}
+
+function buildListControls(isDoubly){
+  document.getElementById('op-row').innerHTML=`<input id="ll-input" type="number" placeholder="value…" style="flex:1;padding:5px 9px;background:#111827;border:1px solid #1e2535;border-radius:6px;color:#e2e8f0;font-size:12px;outline:none"/><button class="op-btn green" id="btn-ll-ins">INSERT</button><button class="op-btn red" id="btn-ll-del">DELETE</button><button class="op-btn cyan" id="btn-ll-disp">DISPLAY</button>`;
+  document.getElementById('btn-ll-ins').onclick=()=>{const v=parseInt(document.getElementById('ll-input').value);if(isNaN(v))return;runOp(isDoubly?buildDLLInsert(dllList,v):buildLLInsert(llList,v),`INSERT ${v}`,'insertNode');document.getElementById('ll-input').value='';};
+  document.getElementById('btn-ll-del').onclick=()=>{const v=parseInt(document.getElementById('ll-input').value);if(isNaN(v))return;runOp(isDoubly?buildDLLDelete(dllList,v):buildLLDelete(llList,v),`DELETE ${v}`,'deleteNode');document.getElementById('ll-input').value='';};
+  document.getElementById('btn-ll-disp').onclick=()=>runOp(isDoubly?buildDLLDisplay(dllList):buildLLDisplay(llList),'DISPLAY','displayList');
+  document.getElementById('ll-input').onkeydown=e=>{if(e.key==='Enter')document.getElementById('btn-ll-ins').click();};
+}
+
+// ═══════════════════════════════════════════
+// PLAYBACK
+// ═══════════════════════════════════════════
+function tick(){
+  if(!isPlaying)return;
+  if(stepIdx<steps.length-1){stepIdx++;renderStep(steps[stepIdx]);updateCounter();updateNavBtns();playTimer=setTimeout(tick,speed);}
+  else{isPlaying=false;if(_onComplete){_onComplete();_onComplete=null;}
+    const last=steps[steps.length-1];
+    if(last&&!last.isBST&&!last.isSearch){
+      if(currentMode==='heap')heap=[...last.arr];else if(currentMode==='bubble')bubbleArr=[...last.arr];else if(currentMode==='selection')selArr=[...last.arr];else if(currentMode==='insertion')insArr=[...last.arr];else if(currentMode==='quicksort')qsArr=[...last.arr];else if(currentMode==='mergesort')msArr=[...last.arr];else if(currentMode==='linked')llList=[...last.list];else if(currentMode==='doubly')dllList=[...last.list];
+    }
+    updateNavBtns();}
+}
+function startPlay(){if(stepIdx>=steps.length-1)return;isPlaying=true;updateNavBtns();playTimer=setTimeout(tick,speed);}
+function pause(){isPlaying=false;clearTimeout(playTimer);updateNavBtns();}
+function runOp(newSteps,logMsg,fn,onComplete=null){
+  pause();_onComplete=onComplete;steps=newSteps;stepIdx=0;renderStep(steps[0]);updateCounter();updateNavBtns();
+  isPlaying=true;playTimer=setTimeout(tick,speed);
+  opLog=[logMsg,...opLog].slice(0,6);
+  document.getElementById('log-row').innerHTML=opLog.map((l,i)=>`<span style="margin-right:10px;opacity:${1-i*.15}">${l}</span>`).join('');
+}
+function updateCounter(){document.getElementById('step-counter').textContent=stepIdx>=0?`${stepIdx+1} / ${steps.length}`:'—';}
+function updateNavBtns(){document.getElementById('btn-back').disabled=stepIdx<=0;document.getElementById('btn-fwd').disabled=stepIdx>=steps.length-1&&steps.length>0;document.getElementById('btn-play').textContent=isPlaying?'⏸ Pause':'▶ Play';}
+document.getElementById('btn-play').onclick=()=>isPlaying?pause():startPlay();
+document.getElementById('btn-back').onclick=()=>{if(stepIdx>0){pause();stepIdx--;renderStep(steps[stepIdx]);updateCounter();updateNavBtns();}};
+document.getElementById('btn-fwd').onclick=()=>{
+  if(stepIdx<steps.length-1){pause();stepIdx++;renderStep(steps[stepIdx]);updateCounter();updateNavBtns();}
+  else{pause();if(steps.length>0&&_onComplete){_onComplete();_onComplete=null;}
+    const last=steps[steps.length-1];
+    if(last&&!last.isBST&&!last.isSearch){if(currentMode==='heap')heap=[...last.arr];else if(currentMode==='bubble')bubbleArr=[...last.arr];else if(currentMode==='selection')selArr=[...last.arr];else if(currentMode==='insertion')insArr=[...last.arr];else if(currentMode==='quicksort')qsArr=[...last.arr];else if(currentMode==='mergesort')msArr=[...last.arr];else if(currentMode==='linked')llList=[...last.list];else if(currentMode==='doubly')dllList=[...last.list];}
+  }
+};
+document.getElementById('btn-reset').onclick=()=>{
+  pause();_onComplete=null;steps=[];stepIdx=-1;updateCounter();updateNavBtns();
+  document.getElementById('msg-box').textContent='Choose an operation to animate';
+  if(currentMode==='bubble')bubbleArr=[...BUBBLE_INIT];else if(currentMode==='selection')selArr=[...SEL_INIT];else if(currentMode==='insertion')insArr=[...INS_INIT];else if(currentMode==='quicksort')qsArr=[...QS_INIT];else if(currentMode==='mergesort')msArr=[...MS_INIT];else if(currentMode==='bst')bstRoot=null;else if(currentMode==='linearsearch')lsArr=[...LS_INIT];else if(currentMode==='binarysearch')bsArr=[...BS_INIT];else if(currentMode==='linked')llList=[];else if(currentMode==='doubly')dllList=[];
+  renderInitial();applyHighlight([]);
+  document.querySelectorAll('.fn-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+};
+document.getElementById('speed-select').onchange=e=>{speed=+e.target.value;};
+document.querySelectorAll('.lang-btn').forEach(b=>b.onclick=()=>switchLang(b.dataset.lang));
+
+// ═══════════════════════════════════════════
+// LAUNCH
+// ═══════════════════════════════════════════
+function hideAll(){['tree-svg','bubble-wrap','sel-wrap','ins-wrap','quick-wrap','merge-wrap','bst-wrap','lsearch-wrap','bsearch-wrap','ll-wrap','dll-wrap'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});document.getElementById('array-bar').style.display='none';}
+function showApp(tag,title){document.getElementById('menu').style.display='none';document.getElementById('app').classList.remove('hidden');document.getElementById('back-btn').style.display='block';document.getElementById('hdr-tag').textContent=tag;document.getElementById('hdr-title').textContent=title;steps=[];stepIdx=-1;opLog=[];_onComplete=null;document.getElementById('log-row').innerHTML='';updateCounter();updateNavBtns();document.getElementById('msg-box').textContent='Choose an operation to animate';}
+function launchHeap(){currentMode='heap';showApp('Max','Heap Visualizer');hideAll();document.getElementById('tree-svg').style.display='block';document.getElementById('array-bar').style.display='flex';buildLegend();buildCodePanel();buildTabs();buildHeapControls();renderInitial();}
+function launchBubble(){currentMode='bubble';bubbleArr=[...BUBBLE_INIT];showApp('Sorting','Bubble Sort');hideAll();document.getElementById('bubble-wrap').style.display='flex';document.getElementById('array-bar').style.display='flex';buildLegend();buildCodePanel();buildTabs();buildBubbleControls();renderInitial();}
+function launchSelection(){currentMode='selection';selArr=[...SEL_INIT];showApp('Sorting','Selection Sort');hideAll();document.getElementById('sel-wrap').style.display='flex';document.getElementById('array-bar').style.display='flex';buildLegend();buildCodePanel();buildTabs();buildSelectionControls();renderInitial();}
+function launchInsertion(){currentMode='insertion';insArr=[...INS_INIT];showApp('Sorting','Insertion Sort');hideAll();document.getElementById('ins-wrap').style.display='flex';document.getElementById('array-bar').style.display='flex';buildLegend();buildCodePanel();buildTabs();buildInsertionControls();renderInitial();}
+function launchQuick(){currentMode='quicksort';qsArr=[...QS_INIT];showApp('Sorting','Quick Sort');hideAll();document.getElementById('quick-wrap').style.display='flex';document.getElementById('array-bar').style.display='flex';buildLegend();buildCodePanel();buildTabs();buildQuickControls();renderInitial();}
+function launchMerge(){currentMode='mergesort';msArr=[...MS_INIT];showApp('Sorting','Merge Sort');hideAll();document.getElementById('merge-wrap').style.display='flex';document.getElementById('array-bar').style.display='flex';buildLegend();buildCodePanel();buildTabs();buildMergeControls();renderInitial();}
+function launchBST(){currentMode='bst';bstRoot=null;showApp('Tree','BST Visualizer');hideAll();document.getElementById('bst-wrap').style.display='block';buildLegend();buildCodePanel();buildTabs();buildBSTControls();renderInitial();}
+function launchLinearSearch(){currentMode='linearsearch';lsArr=[...LS_INIT];showApp('Search','Linear Search');hideAll();document.getElementById('lsearch-wrap').style.display='flex';document.getElementById('array-bar').style.display='flex';buildLegend();buildCodePanel();buildTabs();buildLinearSearchControls();renderInitial();}
+function launchBinarySearch(){currentMode='binarysearch';bsArr=[...BS_INIT];showApp('Search','Binary Search');hideAll();document.getElementById('bsearch-wrap').style.display='flex';document.getElementById('array-bar').style.display='flex';buildLegend();buildCodePanel();buildTabs();buildBinarySearchControls();renderInitial();}
+function launchLL(){currentMode='linked';llList=[];showApp('Singly','Linked List');hideAll();document.getElementById('ll-wrap').style.display='block';buildLegend();buildCodePanel();buildTabs();buildListControls(false);renderInitial();}
+function launchDLL(){currentMode='doubly';dllList=[];showApp('Doubly','Linked List');hideAll();document.getElementById('dll-wrap').style.display='block';buildLegend();buildCodePanel();buildTabs();buildListControls(true);renderInitial();}
+function goMenu(){pause();_onComplete=null;steps=[];stepIdx=-1;opLog=[];document.getElementById('app').classList.add('hidden');document.getElementById('menu').style.display='flex';document.getElementById('back-btn').style.display='none';}
+</script>
+</body>
+</html>
